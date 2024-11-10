@@ -1,0 +1,48 @@
+# Ignore object files, binaries, and compiled output
+*.o
+*.obj
+*.exe
+*.out
+*.a
+*.so
+*.dll
+*.dylib
+
+# Ignore build directories
+/build/
+/bin/
+/lib/
+
+# Ignore CMake and Makefile build files
+CMakeCache.txt
+CMakeFiles/
+/cmake_install.cmake
+Makefile
+
+# Ignore Visual Studio Code config files
+.vscode/
+
+# Ignore Boost-related generated files (if any)
+boost/
+
+# Ignore temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore backup and archives
+*.bak
+*.zip
+*.tar
+*.gz
+*.7z
+*.rar
+
+# Ignore Fossil index or old categories if needed
+fossils/
