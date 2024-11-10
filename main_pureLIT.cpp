@@ -180,7 +180,12 @@ int main(int argc, char **argv)
     size_t sumQ = 0;
     size_t count = 0;
 
-
+    // TODO: Verify what these variables do.
+    // Operation is S/E to start/end an interval and Q to query.
+    // Fist is the inteval id.
+    // Second is the start time.
+    // Third is the end time (probably).
+    // Fourth is only used for aLit. It is probably extra attribute to index.
     while (fQ >> operation >> first >> second >> third >> fourth)
     {
         switch (operation)

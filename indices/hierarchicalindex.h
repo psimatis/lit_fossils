@@ -37,6 +37,8 @@ public:
     virtual ~HierarchicalIndex() {};
     
 
+    // TODO: Ask why do these functions exist. And why are they are not implemented?
+
     // Querying
     // HINT
     // Basic predicates of Allen's algebra

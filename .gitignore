@@ -11,7 +11,7 @@
 
 # Ignore build directories
 /build/
-/bin/
+/bin/of the interval
 /lib/
 
 # Ignore CMake and Makefile build files
@@ -47,3 +47,6 @@ Thumbs.db
 
 # Ignore Fossil index or old categories if needed
 fossils/
+
+# Ignore data
+streams/
