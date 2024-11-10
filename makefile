@@ -9,25 +9,36 @@ else
 	LDFLAGS =
 endif
 
-SOURCES = utils.cpp containers/relation.cpp containers/offsets_templates.cpp containers/offsets.cpp containers/buffer.cpp indices/hierarchicalindex.cpp indices/hint_m_dynamic_naive.cpp indices/hint_m_dynamic_sec_attr.cpp indices/hint_m_dynamic.cpp indices/live_index.cpp
+# Source files
+SOURCES = utils.cpp containers/relation.cpp containers/offsets_templates.cpp containers/offsets.cpp containers/buffer.cpp indices/hierarchicalindex.cpp indices/hint_m_dynamic_naive.cpp indices/hint_m_dynamic_sec_attr.cpp indices/hint_m_dynamic.cpp indices/live_index.cpp indices/fossil_index.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
+# Targets
 all: query
 
-query: pureLIT teHINT  aLIT 
+query: pureLIT teHINT aLIT fossilLIT
 
+# Executable for pureLIT
 pureLIT: $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o main_pureLIT.cpp -o query_pureLIT.exec $(LDADD)
 
+# Executable for teHINT
 teHINT: $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) utils.o containers/relation.o indices/hierarchicalindex.o indices/hint_m_dynamic_naive.o main_teHINT.cpp -o query_teHINT.exec $(LDADD)
 
+# Executable for aLIT
 aLIT: $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic_sec_attr.o main_aLIT.cpp -o query_aLIT.exec $(LDADD)
 
+# Executable for fossilLIT (new target)
+fossilLIT: $(OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o indices/fossil_index.o main_fossilLIT.cpp -o query_fossilLIT.exec $(LDADD)
+
+# Rule for compiling .cpp files to .o files
 .cpp.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Clean target to remove object files and executables
 clean:
 	rm -rf utils.o
 	rm -rf containers/*.o
@@ -35,4 +46,4 @@ clean:
 	rm -rf query_teHINT.exec
 	rm -rf query_pureLIT.exec
 	rm -rf query_aLIT.exec
-
+	rm -rf query_fossilLIT.exec
