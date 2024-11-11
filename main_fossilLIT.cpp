@@ -1,3 +1,5 @@
+// TODO: Currently T is constant. Should it move? How?
+
 #include "getopt.h"
 #include "def_global.h"
 #include "./containers/relation.h"
@@ -29,7 +31,6 @@ void usage(){
 }
 
 int main(int argc, char **argv){
-    // TODO: Plenty variables seem useless. Clean up.
     Timer tim;
     Record r;
     HINT_M_Dynamic *idxR;
@@ -41,7 +42,6 @@ int main(int argc, char **argv){
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
 
-    double b_starttime = 0, b_endtime = 0, i_endtime = 0, b_querytime = 0, i_querytime = 0, avgQueryTime = 0;
     double totalIndexTime = 0, totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0;
     double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
@@ -54,7 +54,7 @@ int main(int argc, char **argv){
     int T = 100000;
     size_t fossilIntervalCount = 0;
     double totalFossilIndexTime = 0;
-    double totalFossilQueryTime = 0;
+    double totalQueryTimeFossil = 0;
     
     settings.init();
     settings.method = "fossilLIT";
@@ -138,14 +138,19 @@ int main(int argc, char **argv){
     int id;
     Timestamp startTime, endTime;
     while (fQ >> operation >> first >> second >> unused1 >> unused2){
+    // Explanation:
+    // Operation is S/E to start/end an interval, or Q to query.
+    // Fist is the inteval ID if S/E, or query start time if Q.
+    // Second is the start/end time if S/E, or query end time if Q.
+    // unused1 is the end time but is not used
+    // unused2 is only used by aLit. It is probably extra attribute to index.
         switch (operation){
             case 'S':
                 id = first;
                 startTime = second;
                 tim.start();
                 lidxR->insert(id, startTime);
-                b_starttime = tim.stop();
-                totalBufferStartTime += b_starttime;
+                totalBufferStartTime += tim.stop();
                 
                 numUpdates++;
                 
@@ -158,19 +163,17 @@ int main(int argc, char **argv){
                 id = first;
                 endTime = second;
                 tim.start();
-                startEndpoint = lidxR->remove(first);
-                b_endtime = tim.stop();
-                totalBufferEndTime += b_endtime;
+                startEndpoint = lidxR->remove(id); // This returns the start timestamp of the deleted interval
+                totalBufferEndTime += tim.stop();
                 
                 tim.start();
-                if (second <= T) {
+                if (endTime <= T) {
                     fossilIndex.insertInterval(id, startEndpoint, endTime); // Add to FossilIndex
                     fossilIntervalCount++;
                 } else {
                     idxR->insert(Record(id, startEndpoint, endTime));
                 }
-                i_endtime = tim.stop();
-                totalIndexEndTime += i_endtime;
+                totalIndexEndTime += tim.stop();
 
                 numUpdates++;
                 
@@ -184,31 +187,32 @@ int main(int argc, char **argv){
                 Timestamp qEnd = second;
                 numQueries++;
 
-                double sumT = 0;
                 for (auto r = 0; r < settings.numRuns; r++){
                     tim.start();
                     // Question: Why does the query takes numQueries and uses it as id?
                     queryresult = lidxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
-                    b_querytime = tim.stop();
+                    totalQueryTime_b += tim.stop();
+                    // Question: Is buffer time synonymous to live index time?
 
                     tim.start();
-                    if (first <= idxR->gend){
+                    if (qStart <= idxR->gend){
+#ifdef WORKLOAD_COUNT
+                        queryresult += idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
+#else
                         queryresult ^= idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
+#endif
                     }
-                    i_querytime = tim.stop();
+                    totalQueryTime_i += tim.stop();
 
-                    if (first <= T) {
-                        tim.start();
+                    tim.start();
+                    if (qStart <= T) {
                         auto fossilResults = fossilIndex.query(qStart, qEnd);
                         queryresult += fossilResults.size();
-                        totalFossilQueryTime += tim.stop();
+                        
                     }
-
-                    totalQueryTime_b += b_querytime;
-                    totalQueryTime_i += i_querytime;
+                    totalQueryTimeFossil += tim.stop();
                 }
                 totalResult += queryresult;
-                avgQueryTime += sumT / settings.numRuns;
                 
                 process_mem_usage(vm, rss);
                 vmMax = max(vm, vmMax);
@@ -254,7 +258,7 @@ int main(int argc, char **argv){
     cout << "-----------------------" << endl;
     cout << "T                                  : " << T << endl;
     cout << "Num of Fossil Intervals            : " << fossilIntervalCount << endl;
-    printf( "Total Query Time (Fossil Index) [secs]: %f\n", totalFossilQueryTime);
+    printf( "Total Query Time (Fossil Index) [secs]: %f\n", totalQueryTimeFossil);
 
     delete lidxR;
     delete idxR;

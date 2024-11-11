@@ -182,12 +182,6 @@ int main(int argc, char **argv)
 
 
     while (fQ >> operation >> first >> second >> third >> fourth)
-    // Variable explanation:
-    // Operation is S/E to start/end an interval, or Q to query.
-    // Fist is the inteval ID if S/E, or query start time if Q.
-    // Second is the start/end time if S/E, or query end time if Q.
-    // Third is the end time but is not used
-    // Fourth is only used by aLit. It is probably extra attribute to index.
     {
         switch (operation)
         {
@@ -206,7 +200,6 @@ int main(int argc, char **argv)
 
             case 'E':
                 tim.start();
-                // This returns the start timestamp of the deleted interval
                 startEndpoint = lidxR->remove(first);
                 b_endtime = tim.stop();
                 totalBufferEndTime += b_endtime;
