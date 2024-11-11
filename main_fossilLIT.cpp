@@ -32,7 +32,6 @@ void usage(){
 
 int main(int argc, char **argv){
     Timer tim;
-    Record r;
     HINT_M_Dynamic *idxR;
     LiveIndex *lidxR;
     RunSettings settings;
@@ -47,13 +46,11 @@ int main(int argc, char **argv){
     double unused1, unused2; // Dummy variables consuming the data stream
     
     char c, operation;
-    string strQuery = "", strPredicate = "", strOptimizations = "", typeBuffer;
+    string typeBuffer;
 
     // Fossil index
     FossilIndex fossilIndex;
     int T = 100000;
-    size_t fossilIntervalCount = 0;
-    double totalFossilIndexTime = 0;
     double totalQueryTimeFossil = 0;
     
     settings.init();
@@ -167,12 +164,10 @@ int main(int argc, char **argv){
                 totalBufferEndTime += tim.stop();
                 
                 tim.start();
-                if (endTime <= T) {
+                if (endTime <= T)
                     fossilIndex.insertInterval(id, startEndpoint, endTime); // Add to FossilIndex
-                    fossilIntervalCount++;
-                } else {
+                else
                     idxR->insert(Record(id, startEndpoint, endTime));
-                }
                 totalIndexEndTime += tim.stop();
 
                 numUpdates++;
@@ -196,6 +191,7 @@ int main(int argc, char **argv){
 
                     tim.start();
                     if (qStart <= idxR->gend){
+// Question: Waht is workload count?
 #ifdef WORKLOAD_COUNT
                         queryresult += idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
 #else
@@ -206,7 +202,7 @@ int main(int argc, char **argv){
 
                     tim.start();
                     if (qStart <= T)
-                        auto fossilResults = fossilIndex.query(qStart, qEnd);
+                        queryresult += fossilIndex.query(qStart, qEnd);
                     totalQueryTimeFossil += tim.stop();
                 }
                 totalResult += queryresult;
@@ -236,8 +232,9 @@ int main(int argc, char **argv){
     cout << "Num of updates                     : " << numUpdates << endl;
     cout << "Num of buffers  (max)              : " << maxNumBuffers << endl;
     cout << "Total updating time (buffer) [secs]: " << (totalBufferStartTime + totalBufferEndTime) << endl;
-    cout << "Total updating time (index)  [secs]: " << totalIndexEndTime << endl << endl;
-    cout << "Num of fossils                     : " << fossilIndex.getObjectCount() << endl << endl;;
+    cout << "Total updating time (index)  [secs]: " << totalIndexEndTime << endl;
+    cout << "Num of fossils                     : " << fossilIndex.getObjectCount() << endl << endl;
+
     cout << "Queries report" << endl;
     cout << "Num of queries                     : " << numQueries << endl;
     cout << "Num of runs per query              : " << settings.numRuns << endl;

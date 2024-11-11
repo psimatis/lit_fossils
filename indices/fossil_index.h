@@ -22,7 +22,7 @@ public:
 
     FossilIndex();
     void insertInterval(int id, double start, double end);
-    vector<int> query(double queryStart, double queryEnd) const;
+    int query(double queryStart, double queryEnd) const;
     size_t getObjectCount() const;
 
 private:
