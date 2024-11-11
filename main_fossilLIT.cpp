@@ -65,6 +65,10 @@ int main(int argc, char **argv){
                 return 0;
             case 'e':
                 leafPartitionExtent = atoi(optarg);
+                if (leafPartitionExtent <= 0){
+                    usage();
+                    return 1;
+                }
                 break;
             case 'b':
                 typeBuffer = toUpperCase((char*)optarg);
@@ -89,14 +93,10 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    if (leafPartitionExtent <= 0){
-        usage();
-        return 1;
-    }
 
     tim.start();
     idxR = new HINT_M_Dynamic(leafPartitionExtent);
-    totalIndexTime = tim.stop();
+    totalIndexTime = tim.stop(); // Question: this variable is never printed.
 
     if (maxCapacity != -1){
         if (typeBuffer == "MAP")
@@ -134,10 +134,6 @@ int main(int argc, char **argv){
         usage();
         return 1;
     }
-
-    // Read stream
-    size_t sumQ = 0;
-    size_t count = 0;
 
     int id;
     Timestamp startTime, endTime;
@@ -187,12 +183,11 @@ int main(int argc, char **argv){
                 Timestamp qStart = first;
                 Timestamp qEnd = second;
                 numQueries++;
-                sumQ += qEnd - qStart;
 
                 double sumT = 0;
                 for (auto r = 0; r < settings.numRuns; r++){
                     tim.start();
-                    // Why does the query takes numQueries and uses it as id?
+                    // Question: Why does the query takes numQueries and uses it as id?
                     queryresult = lidxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                     b_querytime = tim.stop();
 
