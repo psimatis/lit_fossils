@@ -3,26 +3,12 @@
 #include "./containers/relation.h"
 #include "./indices/hint_m.h"
 #include "./indices/live_index.cpp"
-#include "./indices/fossil_index.h" // Include the Fossil Index header
-
-//#define ACTIVATE_PROGRESS_BAR
+#include "./indices/fossil_index.h"
 
 // Define the threshold T for fossil intervals; adjust as needed
 const double T = 100000;
 
-void printProgressBar(LiveIndex *lidx, size_t count)
-{
-#ifdef ACTIVATE_PROGRESS_BAR
-    if (count % 500000 == 0)
-    {
-        cout << count << endl; // Print progress count
-        lidx->print('r');
-    }
-#endif
-}
-
-void usage()
-{
+void usage(){
     cerr << endl;
     cerr << "PROJECT" << endl;
     cerr << "       LIT with Fossil Index for Old Intervals" << endl << endl;
@@ -45,8 +31,7 @@ void usage()
     cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 streams/BOOKS.mix" << endl << endl;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
     Timer tim;
     Record r;
     HINT_M_Dynamic *idxR;
@@ -54,31 +39,28 @@ int main(int argc, char **argv)
     FossilIndex fossilIndex; // Initialize FossilIndex for old intervals
     size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0;
     double b_starttime = 0, b_endtime = 0, i_endtime = 0, b_querytime = 0, i_querytime = 0, avgQueryTime = 0;
-    double totalIndexTime = 0, totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0, totalBufferMergingTime = 0;
+    double totalIndexTime = 0, totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0;
     Timestamp first, second, startEndpoint;
     RunSettings settings;
     char c, operation;
-    double third, fourth;
+    double unused1, unused2; // These are dummy variables to consume the data stream
     double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
     string strQuery = "", strPredicate = "", strOptimizations = "";
     Timestamp leafPartitionExtent = 0;
     string typeBuffer;
     size_t maxCapacity = -1;
     Timestamp maxDuration = -1;
-    unsigned int mergeParameter = 0;
     size_t maxNumBuffers = 0;
 
-    // New variables for fossil reporting
+    // Fossil reporting variables
     size_t fossilIntervalCount = 0;
     double totalFossilIndexTime = 0;
     double totalFossilQueryTime = 0;
     
     settings.init();
     settings.method = "fossilLIT";
-    while ((c = getopt(argc, argv, "?hq:e:c:d:b:r:")) != -1)
-    {
-        switch (c)
-        {
+    while ((c = getopt(argc, argv, "?hq:e:c:d:b:r:")) != -1){
+        switch (c){
             case '?':
             case 'h':
                 usage();
@@ -105,14 +87,12 @@ int main(int argc, char **argv)
         }
     }
     
-    if (argc - optind != 1)
-    {
+    if (argc - optind != 1){
         usage();
         return 1;
     }
 
-    if (leafPartitionExtent <= 0)
-    {
+    if (leafPartitionExtent <= 0){
         usage();
         return 1;
     }
@@ -121,36 +101,31 @@ int main(int argc, char **argv)
     idxR = new HINT_M_Dynamic(leafPartitionExtent);
     totalIndexTime = tim.stop();
 
-    if (maxCapacity != -1)
-    {
+    if (maxCapacity != -1){
         if (typeBuffer == "MAP")
             lidxR = new LiveIndexCapacityConstraintedMap(maxCapacity);
         else if (typeBuffer == "VECTOR")
             lidxR = new LiveIndexCapacityConstraintedVector(maxCapacity);
         else if (typeBuffer == "ENHANCEDHASHMAP")
             lidxR = new LiveIndexCapacityConstraintedICDE16(maxCapacity);
-        else
-        {
+        else{
             usage();
             return 1;
         }
     }
-    else if (maxDuration != -1)
-    {
+    else if (maxDuration != -1){
         if (typeBuffer == "MAP")
             lidxR = new LiveIndexDurationConstraintedMap(maxDuration);
         else if (typeBuffer == "VECTOR")
             lidxR = new LiveIndexDurationConstraintedVector(maxDuration);
         else if (typeBuffer == "ENHANCEDHASHMAP")
             lidxR = new LiveIndexDurationConstraintedICDE16(maxDuration);
-        else
-        {
+        else{
             usage();
             return 1;
         }
     }
-    else
-    {
+    else{
         usage();
         return 1;
     }
@@ -158,8 +133,7 @@ int main(int argc, char **argv)
     // Load stream
     settings.queryFile = argv[optind];
     ifstream fQ(settings.queryFile);
-    if (!fQ)
-    {
+    if (!fQ){
         usage();
         return 1;
     }
@@ -168,13 +142,15 @@ int main(int argc, char **argv)
     size_t sumQ = 0;
     size_t count = 0;
 
-    while (fQ >> operation >> first >> second >> third >> fourth)
-    {
-        switch (operation)
-        {
+    int id;
+    Timestamp startTime, endTime;
+    while (fQ >> operation >> first >> second >> unused1 >> unused2){
+        switch (operation){
             case 'S':
+                id = first;
+                startTime = second;
                 tim.start();
-                lidxR->insert(first, second);
+                lidxR->insert(id, startTime);
                 b_starttime = tim.stop();
                 totalBufferStartTime += b_starttime;
                 
@@ -186,6 +162,8 @@ int main(int argc, char **argv)
                 break;
 
             case 'E':
+                id = first;
+                endTime = second;
                 tim.start();
                 startEndpoint = lidxR->remove(first);
                 b_endtime = tim.stop();
@@ -193,10 +171,10 @@ int main(int argc, char **argv)
                 
                 tim.start();
                 if (second <= T) {
-                    fossilIndex.insertInterval(first, startEndpoint, second); // Add interval to FossilIndex if old
+                    fossilIndex.insertInterval(id, startEndpoint, endTime); // Add to FossilIndex
                     fossilIntervalCount++;
                 } else {
-                    idxR->insert(Record(first, startEndpoint, second));
+                    idxR->insert(Record(id, startEndpoint, endTime));
                 }
                 i_endtime = tim.stop();
                 totalIndexEndTime += i_endtime;
@@ -209,26 +187,26 @@ int main(int argc, char **argv)
                 break;
 
             case 'Q':
+                Timestamp qStart = first;
+                Timestamp qEnd = second;
                 numQueries++;
-                sumQ += second - first;
+                sumQ += qEnd - qStart;
 
                 double sumT = 0;
-                for (auto r = 0; r < settings.numRuns; r++)
-                {
+                for (auto r = 0; r < settings.numRuns; r++){
                     tim.start();
-                    queryresult = lidxR->execute_pureTimeTravel(RangeQuery(numQueries, first, second));
+                    queryresult = lidxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                     b_querytime = tim.stop();
 
                     tim.start();
-                    if (first <= idxR->gend)
-                    {
-                        queryresult ^= idxR->execute_pureTimeTravel(RangeQuery(numQueries, first, second));
+                    if (first <= idxR->gend){
+                        queryresult ^= idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                     }
                     i_querytime = tim.stop();
 
                     if (first <= T) {
                         tim.start();
-                        auto fossilResults = fossilIndex.query(first, second);
+                        auto fossilResults = fossilIndex.query(qStart, qEnd);
                         queryresult += fossilResults.size();
                         totalFossilQueryTime += tim.stop();
                     }
@@ -252,8 +230,7 @@ int main(int argc, char **argv)
     idxR->getStats();
     cout << endl;
     cout << "fossilLIT" << endl;
-    cout << "====================" << endl;
-    cout << endl;
+    cout << "====================" << endl << endl;
     cout << "Buffer info" << endl;
     cout << "Type                               : " << typeBuffer << endl;
     if (maxCapacity != -1)
@@ -279,6 +256,7 @@ int main(int argc, char **argv)
     printf( "Total querying time (buffer) [secs]: %f\n", totalQueryTime_b/settings.numRuns);
     printf( "Total querying time (index)  [secs]: %f\n\n", totalQueryTime_i/settings.numRuns);
 
+    // Fossil stats
     cout << "Fossil Index Statistics" << endl;
     cout << "-----------------------" << endl;
     cout << "Num of Fossil Intervals            : " << fossilIntervalCount << endl;
