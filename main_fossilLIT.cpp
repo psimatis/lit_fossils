@@ -5,18 +5,13 @@
 #include "./indices/live_index.cpp"
 #include "./indices/fossil_index.h"
 
-// Define the threshold T for fossil intervals; adjust as needed
-const double T = 100000;
 
 void usage(){
-    cerr << endl;
-    cerr << "PROJECT" << endl;
+    cerr << endl << "PROJECT" << endl;
     cerr << "       LIT with Fossil Index for Old Intervals" << endl << endl;
     cerr << "USAGE" << endl;
     cerr << "       ./query_fossilLIT.exec [OPTIONS] [STREAMFILE]" << endl << endl;
     cerr << "DESCRIPTION" << endl;
-    cerr << "       -? or -h" << endl;
-    cerr << "              display this help message and exit" << endl;
     cerr << "       -e" << endl;
     cerr << "              set the leaf partition extent; it is set in seconds" << endl;
     cerr << "       -b" << endl;
@@ -27,42 +22,45 @@ void usage(){
     cerr << "              set the duration constraint number for the LIVE INDEX" << endl;      
     cerr << "       -r runs" << endl;
     cerr << "              set the number of runs per query; by default 1" << endl << endl;
+    cerr << "       -T" << endl;
+    cerr << "              set the fossil threshold; intervals with end time <= T are added to the Fossil Index" << endl << endl;
     cerr << "EXAMPLE" << endl;
-    cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 streams/BOOKS.mix" << endl << endl;
+    cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 -T 200000 streams/BOOKS.mix" << endl << endl;
 }
 
 int main(int argc, char **argv){
+    // TODO: Plenty variables seem useless. Clean up.
     Timer tim;
     Record r;
     HINT_M_Dynamic *idxR;
     LiveIndex *lidxR;
-    FossilIndex fossilIndex; // Initialize FossilIndex for old intervals
+    RunSettings settings;
+
+    size_t maxCapacity = -1, maxNumBuffers = 0;
     size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0;
+
+    Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
+
     double b_starttime = 0, b_endtime = 0, i_endtime = 0, b_querytime = 0, i_querytime = 0, avgQueryTime = 0;
     double totalIndexTime = 0, totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0;
-    Timestamp first, second, startEndpoint;
-    RunSettings settings;
-    char c, operation;
-    double unused1, unused2; // These are dummy variables to consume the data stream
     double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
-    string strQuery = "", strPredicate = "", strOptimizations = "";
-    Timestamp leafPartitionExtent = 0;
-    string typeBuffer;
-    size_t maxCapacity = -1;
-    Timestamp maxDuration = -1;
-    size_t maxNumBuffers = 0;
+    double unused1, unused2; // Dummy variables consuming the data stream
+    
+    char c, operation;
+    string strQuery = "", strPredicate = "", strOptimizations = "", typeBuffer;
 
-    // Fossil reporting variables
+    // Fossil index
+    FossilIndex fossilIndex;
+    int T = 100000;
     size_t fossilIntervalCount = 0;
     double totalFossilIndexTime = 0;
     double totalFossilQueryTime = 0;
     
     settings.init();
     settings.method = "fossilLIT";
-    while ((c = getopt(argc, argv, "?hq:e:c:d:b:r:")) != -1){
+    while ((c = getopt(argc, argv, "q:e:c:d:b:r:T:")) != -1){
         switch (c){
             case '?':
-            case 'h':
                 usage();
                 return 0;
             case 'e':
@@ -80,10 +78,9 @@ int main(int argc, char **argv){
             case 'r':
                 settings.numRuns = atoi(optarg);
                 break;
-            default:
-                cerr << endl << "Error - unknown option '" << c << "'" << endl << endl;
-                usage();
-                return 1;
+            case 'T':
+                T = atoi(optarg);
+                break;
         }
     }
     
@@ -195,6 +192,7 @@ int main(int argc, char **argv){
                 double sumT = 0;
                 for (auto r = 0; r < settings.numRuns; r++){
                     tim.start();
+                    // Why does the query takes numQueries and uses it as id?
                     queryresult = lidxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                     b_querytime = tim.stop();
 
@@ -257,8 +255,9 @@ int main(int argc, char **argv){
     printf( "Total querying time (index)  [secs]: %f\n\n", totalQueryTime_i/settings.numRuns);
 
     // Fossil stats
-    cout << "Fossil Index Statistics" << endl;
+    cout << "Fossil Index" << endl;
     cout << "-----------------------" << endl;
+    cout << "T                                  : " << T << endl;
     cout << "Num of Fossil Intervals            : " << fossilIntervalCount << endl;
     printf( "Total Query Time (Fossil Index) [secs]: %f\n", totalFossilQueryTime);
 
