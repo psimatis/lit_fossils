@@ -19,3 +19,7 @@ vector<int> FossilIndex::query(double queryStart, double queryEnd) const {
         intervalIds.push_back(result.second);
     return intervalIds;
 }
+
+size_t FossilIndex::getObjectCount() const {
+    return rtree.size();
+}

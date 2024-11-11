@@ -205,11 +205,8 @@ int main(int argc, char **argv){
                     totalQueryTime_i += tim.stop();
 
                     tim.start();
-                    if (qStart <= T) {
+                    if (qStart <= T)
                         auto fossilResults = fossilIndex.query(qStart, qEnd);
-                        queryresult += fossilResults.size();
-                        
-                    }
                     totalQueryTimeFossil += tim.stop();
                 }
                 totalResult += queryresult;
@@ -257,7 +254,7 @@ int main(int argc, char **argv){
     cout << "Fossil Index" << endl;
     cout << "-----------------------" << endl;
     cout << "T                                  : " << T << endl;
-    cout << "Num of Fossil Intervals            : " << fossilIntervalCount << endl;
+    cout << "Num of Fossil Intervals            : " << fossilIndex.getObjectCount() << endl;
     printf( "Total Query Time (Fossil Index) [secs]: %f\n", totalQueryTimeFossil);
 
     delete lidxR;

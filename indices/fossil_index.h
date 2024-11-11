@@ -23,9 +23,10 @@ public:
     FossilIndex();
     void insertInterval(int id, double start, double end);
     vector<int> query(double queryStart, double queryEnd) const;
+    size_t getObjectCount() const;
 
 private:
-    bgi::rtree<Value, bgi::quadratic<16>> rtree;
+    bgi::rtree<Value, bgi::rstar<16>> rtree;
 };
 
 #endif // FOSSIL_INDEX_H
