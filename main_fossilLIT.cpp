@@ -222,21 +222,22 @@ int main(int argc, char **argv){
 
     // Report
     idxR->getStats();
-    cout << endl;
-    cout << "fossilLIT" << endl;
+    cout << endl << "fossilLIT" << endl;
     cout << "====================" << endl << endl;
     cout << "Buffer info" << endl;
     cout << "Type                               : " << typeBuffer << endl;
     if (maxCapacity != -1)
-        cout << "Buffer capacity                    : " << maxCapacity << endl << endl;
+        cout << "Buffer capacity                    : " << maxCapacity << endl;
     else
-        cout << "Buffer duration                    : " << maxDuration << endl << endl;
+        cout << "Buffer duration                    : " << maxDuration << endl;
+    cout << "T                                  : " << T << endl << endl;
     cout << "Index info" << endl;
     cout << "Updates report" << endl;
     cout << "Num of updates                     : " << numUpdates << endl;
     cout << "Num of buffers  (max)              : " << maxNumBuffers << endl;
-    printf( "Total updating time (buffer) [secs]: %f\n", (totalBufferStartTime+totalBufferEndTime));
-    printf( "Total updating time (index)  [secs]: %f\n\n", totalIndexEndTime);
+    cout << "Total updating time (buffer) [secs]: " << (totalBufferStartTime + totalBufferEndTime) << endl;
+    cout << "Total updating time (index)  [secs]: " << totalIndexEndTime << endl << endl;
+    cout << "Num of fossils                     : " << fossilIndex.getObjectCount() << endl << endl;;
     cout << "Queries report" << endl;
     cout << "Num of queries                     : " << numQueries << endl;
     cout << "Num of runs per query              : " << settings.numRuns << endl;
@@ -247,15 +248,10 @@ int main(int argc, char **argv){
     cout << "XOR]                 : ";
 #endif
     cout << totalResult << endl;
-    printf( "Total querying time (buffer) [secs]: %f\n", totalQueryTime_b/settings.numRuns);
-    printf( "Total querying time (index)  [secs]: %f\n\n", totalQueryTime_i/settings.numRuns);
+    cout << "Total querying time (buffer) [secs]: " << (totalQueryTime_b / settings.numRuns) << endl;
+    cout << "Total querying time (index)  [secs]: " << (totalQueryTime_i / settings.numRuns) << endl;
+    cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl;
 
-    // Fossil stats
-    cout << "Fossil Index" << endl;
-    cout << "-----------------------" << endl;
-    cout << "T                                  : " << T << endl;
-    cout << "Num of Fossil Intervals            : " << fossilIndex.getObjectCount() << endl;
-    printf( "Total Query Time (Fossil Index) [secs]: %f\n", totalQueryTimeFossil);
 
     delete lidxR;
     delete idxR;
