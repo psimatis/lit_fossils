@@ -30,44 +30,18 @@ void usage(){
     cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 -T 200000 streams/BOOKS.mix" << endl << endl;
 }
 
-int main(int argc, char **argv){
-    Timer tim;
-    HINT_M_Dynamic *idxR;
-    LiveIndex *lidxR;
-    RunSettings settings;
-
-    size_t maxCapacity = -1, maxNumBuffers = 0;
-    size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0;
-
-    Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
-
-    double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0;
-    double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
-    double unused1, unused2; // Dummy variables consuming the data stream
-    
-    char c, operation;
-    string typeBuffer;
-
-    // Fossil index
-    string storageFile = "fossil_index.db";
-    FossilIndex fossilIndex(storageFile);
-    int T = 100000;
-    double totalQueryTimeFossil = 0;
-    
-    // Parse arguments
+// Parse arguments
+void parseArguments(int argc, char** argv, RunSettings& settings, Timestamp& leafPartitionExtent, 
+                    string& typeBuffer, size_t& maxCapacity, Timestamp& maxDuration, 
+                    int& T, string& queryFile) {
+    char c;
     settings.init();
     settings.method = "fossilLIT";
-    while ((c = getopt(argc, argv, "q:e:c:d:b:r:T:")) != -1){
-        switch (c){
-            case '?':
-                usage();
-                return 0;
+
+    while ((c = getopt(argc, argv, "q:e:c:d:b:r:T:")) != -1) {
+        switch (c) {
             case 'e':
                 leafPartitionExtent = atoi(optarg);
-                if (leafPartitionExtent <= 0){
-                    usage();
-                    return 1;
-                }
                 break;
             case 'b':
                 typeBuffer = toUpperCase((char*)optarg);
@@ -84,10 +58,61 @@ int main(int argc, char **argv){
             case 'T':
                 T = atoi(optarg);
                 break;
+            case '?':
+            default:
+                throw invalid_argument("Invalid argument or option.");
         }
     }
+
+    if (argc - optind != 1 || leafPartitionExtent <= 0) 
+        throw invalid_argument("Invalid number of arguments. A stream file is required.");
+
+    queryFile = argv[optind];
+}
+
+// Creates Live Index
+LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timestamp maxDuration) {
+    if (maxCapacity != -1) {
+        if (typeBuffer == "MAP") return new LiveIndexCapacityConstraintedMap(maxCapacity);
+        if (typeBuffer == "VECTOR") return new LiveIndexCapacityConstraintedVector(maxCapacity);
+        if (typeBuffer == "ENHANCEDHASHMAP") return new LiveIndexCapacityConstraintedICDE16(maxCapacity);
+    } 
+    else if (maxDuration != -1) {
+        if (typeBuffer == "MAP") return new LiveIndexDurationConstraintedMap(maxDuration);
+        if (typeBuffer == "VECTOR") return new LiveIndexDurationConstraintedVector(maxDuration);
+        if (typeBuffer == "ENHANCEDHASHMAP") return new LiveIndexDurationConstraintedICDE16(maxDuration);
+    }
+    throw invalid_argument("Invalid buffer type or constraints for Live Index.");
+}
+
+int main(int argc, char **argv){
+    Timer tim;
+    HINT_M_Dynamic *idxR;
+    LiveIndex *lidxR;
+    RunSettings settings;
+
+    size_t maxCapacity = -1, maxNumBuffers = 0;
+    size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0;
+
+    Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
+
+    double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
+    double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
+    double unused1, unused2; // Dummy variables consuming the data stream
     
-    if (argc - optind != 1){
+    char operation;
+    string typeBuffer, queryFile;
+
+    // Fossil index
+    string storageFile = "fossil_index.db";
+    FossilIndex fossilIndex(storageFile);
+    int T = 100000;
+    
+    // Parse arguments
+    try {
+        parseArguments(argc, argv, settings, leafPartitionExtent, typeBuffer, maxCapacity, maxDuration, T, queryFile);
+    } catch (const invalid_argument& e) {
+        cerr << "Error: " << e.what() << endl;
         usage();
         return 1;
     }
@@ -96,31 +121,10 @@ int main(int argc, char **argv){
     idxR = new HINT_M_Dynamic(leafPartitionExtent);
 
     // Create live index
-    if (maxCapacity != -1){
-        if (typeBuffer == "MAP")
-            lidxR = new LiveIndexCapacityConstraintedMap(maxCapacity);
-        else if (typeBuffer == "VECTOR")
-            lidxR = new LiveIndexCapacityConstraintedVector(maxCapacity);
-        else if (typeBuffer == "ENHANCEDHASHMAP")
-            lidxR = new LiveIndexCapacityConstraintedICDE16(maxCapacity);
-        else{
-            usage();
-            return 1;
-        }
-    }
-    else if (maxDuration != -1){
-        if (typeBuffer == "MAP")
-            lidxR = new LiveIndexDurationConstraintedMap(maxDuration);
-        else if (typeBuffer == "VECTOR")
-            lidxR = new LiveIndexDurationConstraintedVector(maxDuration);
-        else if (typeBuffer == "ENHANCEDHASHMAP")
-            lidxR = new LiveIndexDurationConstraintedICDE16(maxDuration);
-        else{
-            usage();
-            return 1;
-        }
-    }
-    else{
+    try {
+        lidxR = createLiveIndex(typeBuffer, maxCapacity, maxDuration);
+    } catch (const invalid_argument& e) {
+        cerr << "Error: " << e.what() << endl;
         usage();
         return 1;
     }
@@ -191,14 +195,8 @@ int main(int argc, char **argv){
                     // Question: Is buffer time synonymous to live index time?
 
                     tim.start();
-                    if (qStart <= idxR->gend){
-// Question: Waht is workload count?
-#ifdef WORKLOAD_COUNT
-                        queryresult += idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
-#else
+                    if (qStart <= idxR->gend)
                         queryresult ^= idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
-#endif
-                    }
                     totalQueryTime_i += tim.stop();
 
                     tim.start();
@@ -228,7 +226,7 @@ int main(int argc, char **argv){
         cout << "Buffer capacity                    : " << maxCapacity << endl;
     else
         cout << "Buffer duration                    : " << maxDuration << endl;
-    cout << "T                                  : " << T << endl << endl;
+    cout << "Tf                                  : " << T << endl << endl;
     cout << "Index info" << endl;
     cout << "Updates report" << endl;
     cout << "Num of updates                     : " << numUpdates << endl;
@@ -241,11 +239,7 @@ int main(int argc, char **argv){
     cout << "Num of queries                     : " << numQueries << endl;
     cout << "Num of runs per query              : " << settings.numRuns << endl;
     cout << "Total result [";
-#ifdef WORKLOAD_COUNT
-    cout << "COUNT]               : ";
-#else
     cout << "XOR]                 : ";
-#endif
     cout << totalResult << endl;
     cout << "Total querying time (buffer) [secs]: " << (totalQueryTime_b / settings.numRuns) << endl;
     cout << "Total querying time (index)  [secs]: " << (totalQueryTime_i / settings.numRuns) << endl;
