@@ -41,7 +41,7 @@ int main(int argc, char **argv){
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
 
-    double totalIndexTime = 0, totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0;
+    double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalQueryTime_b = 0, totalQueryTime_i = 0;
     double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
     
@@ -90,10 +90,7 @@ int main(int argc, char **argv){
         return 1;
     }
 
-
-    tim.start();
     idxR = new HINT_M_Dynamic(leafPartitionExtent);
-    totalIndexTime = tim.stop(); // Question: this variable is never printed.
 
     if (maxCapacity != -1){
         if (typeBuffer == "MAP")
@@ -207,6 +204,7 @@ int main(int argc, char **argv){
                 }
                 totalResult += queryresult;
                 
+                // Question: What does this function do?
                 process_mem_usage(vm, rss);
                 vmMax = max(vm, vmMax);
                 rssMax = max(rss, rssMax);
