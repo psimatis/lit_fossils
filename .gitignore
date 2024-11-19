@@ -50,3 +50,5 @@ fossils/
 
 # Ignore data
 streams/
+*.dat
+*.idx

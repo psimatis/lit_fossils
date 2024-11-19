@@ -1,32 +1,26 @@
-// TODO: For now the fossil index in RTree. 
-// Test other index structures.
-
 #ifndef FOSSIL_INDEX_H
 #define FOSSIL_INDEX_H
 
+#include <spatialindex/SpatialIndex.h>
 #include <memory>
 #include <vector>
-#include <boost/geometry.hpp>
-#include <boost/geometry/index/rtree.hpp>
+#include <string>
 
-using namespace std;
-
-namespace bg = boost::geometry;
-namespace bgi = boost::geometry::index;
+using namespace SpatialIndex;
 
 class FossilIndex {
 public:
-    using Point = bg::model::point<double, 2, bg::cs::cartesian>;
-    using Box = bg::model::box<Point>;
-    using Value = pair<Box, int>; // Box with interval ID or data reference
+    FossilIndex(std::string storageFile);
+    ~FossilIndex();
 
-    FossilIndex();
     void insertInterval(int id, double start, double end);
     int query(double queryStart, double queryEnd) const;
     size_t getObjectCount() const;
 
 private:
-    bgi::rtree<Value, bgi::rstar<16>> rtree;
+    IStorageManager* storageManager;
+    ISpatialIndex* rtree;
+    mutable size_t objectCount;
 };
 
 #endif // FOSSIL_INDEX_H

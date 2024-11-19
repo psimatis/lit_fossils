@@ -7,7 +7,7 @@
 #include "./indices/live_index.cpp"
 #include "./indices/fossil_index.h"
 
-
+// Display instructions
 void usage(){
     cerr << endl << "PROJECT" << endl;
     cerr << "       LIT with Fossil Index for Old Intervals" << endl << endl;
@@ -49,10 +49,12 @@ int main(int argc, char **argv){
     string typeBuffer;
 
     // Fossil index
-    FossilIndex fossilIndex;
+    string storageFile = "fossil_index.db";
+    FossilIndex fossilIndex(storageFile);
     int T = 100000;
     double totalQueryTimeFossil = 0;
     
+    // Parse arguments
     settings.init();
     settings.method = "fossilLIT";
     while ((c = getopt(argc, argv, "q:e:c:d:b:r:T:")) != -1){
@@ -90,8 +92,10 @@ int main(int argc, char **argv){
         return 1;
     }
 
+    // Create dead index
     idxR = new HINT_M_Dynamic(leafPartitionExtent);
 
+    // Create live index
     if (maxCapacity != -1){
         if (typeBuffer == "MAP")
             lidxR = new LiveIndexCapacityConstraintedMap(maxCapacity);
