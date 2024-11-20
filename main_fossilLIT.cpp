@@ -107,7 +107,7 @@ int main(int argc, char **argv){
 
     size_t maxCapacity = -1, maxNumBuffers = 0;
     size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
-    int rebuildThreshold = 1000000;
+    int rebuildThreshold = 500000;
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv){
     // Fossil index
     string storageFile = "fossil_index.db";
     FossilIndex fossilIndex(storageFile);
-    int T = 100000;
+    int T = -1;
     
     // Parse arguments
     try {
@@ -185,21 +185,19 @@ int main(int argc, char **argv){
                 totalBufferEndTime += tim.stop();
                 
                 tim.start();
-                if (endTime <= T)
-                    fossilIndex.insertInterval(id, startEndpoint, endTime); // Add to FossilIndex
-                else
-                    deadIndex->insert(Record(id, startEndpoint, endTime));
+                deadIndex->insert(Record(id, startEndpoint, endTime));
                 totalIndexEndTime += tim.stop();
 
                 numUpdates++;
 
-                if (numUpdates % rebuildThreshold == 0) { // TODO: Define rebuildThreshold as needed
-                    // Rebuild the dead index and retrieve fossil intervals
+                // Rebuild the dead index and retrieve fossil intervals
+                if (numUpdates % rebuildThreshold == 0) { // TODO: Define rebuildThreshold as needed 
                     tim.start();
                     const Relation& fossilIntervals = deadIndex->rebuild(T);
                     totalRebuildTime += tim.stop();
 
-                    // Insert fossil intervals into the fossil index
+                    cout << "Intervals to move to fossil:" << fossilIntervals.size() << endl;
+
                     for (const auto& interval : fossilIntervals)
                         fossilIndex.insertInterval(interval.id, interval.start, interval.end);
                     numRebuilds++;

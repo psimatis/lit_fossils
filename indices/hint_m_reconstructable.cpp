@@ -5,10 +5,9 @@ using namespace std;
 HINT_Reconstructable::HINT_Reconstructable(Timestamp leafPartitionExtent)
     : HINT_M_Dynamic(leafPartitionExtent) {}
 
-bool HINT_Reconstructable::isTombstoned(const Record& r, Timestamp Tf) const {
+bool HINT_Reconstructable::isFossil(const Record& r, Timestamp Tf) {
     return r.end <= Tf; // Mark as tombstoned if the record's end timestamp is less than or equal to Tf
 }
-
 
 // Reconstructs the HINT without the tombstones intervals.
 // The tombstoned records are returned so the fossil index can insert them.
@@ -25,7 +24,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pOrgsInTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (isTombstoned(r, Tf)) fossilRecords.push_back(r);
+                if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
             }
         }
@@ -38,7 +37,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pOrgsAftTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (isTombstoned(r, Tf)) fossilRecords.push_back(r);
+                if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
             }
         }
@@ -50,7 +49,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pRepsInTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (isTombstoned(r, Tf)) fossilRecords.push_back(r);
+                if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
             }
         }
@@ -62,7 +61,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pRepsAftTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (isTombstoned(r, Tf)) fossilRecords.push_back(r);
+                if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
             }
         }
