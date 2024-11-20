@@ -3,9 +3,10 @@
 #include "getopt.h"
 #include "def_global.h"
 #include "./containers/relation.h"
-#include "./indices/hint_m.h"
+// #include "./indices/hint_m.h"
 #include "./indices/live_index.cpp"
 #include "./indices/fossil_index.h"
+#include "./indices/hint_m_reconstructable.h"
 
 // Display instructions
 void usage(){
@@ -87,7 +88,7 @@ LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timesta
 
 int main(int argc, char **argv){
     Timer tim;
-    HINT_M_Dynamic *idxR;
+    HINT_Reconstructable *idxR;
     LiveIndex *lidxR;
     RunSettings settings;
 
@@ -118,7 +119,7 @@ int main(int argc, char **argv){
     }
 
     // Create dead index
-    idxR = new HINT_M_Dynamic(leafPartitionExtent);
+    idxR = new HINT_Reconstructable(leafPartitionExtent);
 
     // Create live index
     try {
