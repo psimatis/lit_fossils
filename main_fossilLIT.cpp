@@ -1,7 +1,6 @@
 // Notes 
-// Currently T is constant. Where should it go when it moves?
-// I trigger fossilizating every few dead index updates. It should trigger when the memory usage exceeds a threshold.
-// The live index is tiny (eg 0.0017MB) compared to dead index (eg 130MB). 
+// Tf moves in the middle of the latest end and its previous value if a memory threshold is reached.
+// The live index is tiny (~0.002MB) compared to dead index (~50MB). 
 
 #include "getopt.h"
 #include "def_global.h"
@@ -9,6 +8,8 @@
 #include "./indices/live_index.cpp"
 #include "./indices/fossil_index.h"
 #include "./indices/hint_m_reconstructable.h"
+
+using namespace std;
 
 // Display instructions
 void usage(){
@@ -27,21 +28,18 @@ void usage(){
     cerr << "              set the duration constraint number for the LIVE INDEX" << endl;      
     cerr << "       -r runs" << endl;
     cerr << "              set the number of runs per query; by default 1" << endl << endl;
-    cerr << "       -T" << endl;
-    cerr << "              set the fossil threshold; intervals with end time <= T are added to the Fossil Index" << endl << endl;
     cerr << "EXAMPLE" << endl;
-    cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 -T 200000 streams/BOOKS.mix" << endl << endl;
+    cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 streams/BOOKS.mix" << endl << endl;
 }
 
 // Parse arguments
 void parseArguments(int argc, char** argv, RunSettings& settings, Timestamp& leafPartitionExtent, 
-                    string& typeBuffer, size_t& maxCapacity, Timestamp& maxDuration, 
-                    int& T, string& queryFile) {
+                    string& typeBuffer, size_t& maxCapacity, Timestamp& maxDuration, string& queryFile) {
     char c;
     settings.init();
     settings.method = "fossilLIT";
 
-    while ((c = getopt(argc, argv, "q:e:c:d:b:r:T:")) != -1) {
+    while ((c = getopt(argc, argv, "q:e:c:d:b:r:")) != -1) {
         switch (c) {
             case 'e':
                 leafPartitionExtent = atoi(optarg);
@@ -57,9 +55,6 @@ void parseArguments(int argc, char** argv, RunSettings& settings, Timestamp& lea
                 break;
             case 'r':
                 settings.numRuns = atoi(optarg);
-                break;
-            case 'T':
-                T = atoi(optarg);
                 break;
             case '?':
             default:
@@ -112,11 +107,12 @@ int main(int argc, char **argv){
     size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
+    Timestamp Tf = 0;
 
     double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalRebuildTime = 0;
     double totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
-    double memoryThresholdMB = 80;
+    double memoryThreshold = 40 * (1024 * 1024);
     
     char operation;
     string typeBuffer, queryFile;
@@ -124,11 +120,10 @@ int main(int argc, char **argv){
     // Fossil index
     string storageFile = "fossil_index.db";
     FossilIndex fossilIndex(storageFile);
-    int T = -1;
     
     // Parse arguments
     try {
-        parseArguments(argc, argv, settings, leafPartitionExtent, typeBuffer, maxCapacity, maxDuration, T, queryFile);
+        parseArguments(argc, argv, settings, leafPartitionExtent, typeBuffer, maxCapacity, maxDuration, queryFile);
     } catch (const invalid_argument& e) {
         cerr << "Error: " << e.what() << endl;
         usage();
@@ -157,13 +152,13 @@ int main(int argc, char **argv){
 
     int id;
     Timestamp startTime, endTime;
-    while (fQ >> operation >> first >> second >> unused1 >> unused2){
     // Explanation:
     // Operation is S/E to start/end an interval, or Q to query.
     // Fist is the inteval ID if S/E, or query start time if Q.
     // Second is the start/end time if S/E, or query end time if Q.
     // unused1 is the end time but is not used
     // unused2 is only used by aLit. It is probably extra attribute to index.
+    while (fQ >> operation >> first >> second >> unused1 >> unused2){
         switch (operation){
             case 'S':
                 id = first;
@@ -190,16 +185,20 @@ int main(int argc, char **argv){
                 numUpdates++;
 
                 // Fossilize intervals
-                double totalMemoryMB = (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage()) / (1024.0 * 1024.0);
+                double totalMemory = liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage();
 
-                if (totalMemoryMB > memoryThresholdMB) {
+                if (totalMemory > memoryThreshold) {
                     tim.start();
-                    const Relation& fossilIntervals = deadIndex->rebuild(T);
-                    cout << "Intervals to move to fossil:" << fossilIntervals.size() << endl;
-                    for (const auto& interval : fossilIntervals)
-                        fossilIndex.insertInterval(interval.id, interval.start, interval.end);
-                    totalRebuildTime += tim.stop();
-                    numRebuilds++;
+                    Tf += (endTime - Tf) / 2;
+                    cout << "Tf: " << Tf << endl;
+                    const Relation& fossilIntervals = deadIndex->rebuild(Tf);
+                    cout << "Intervals to move to fossil: " << fossilIntervals.size() << endl;
+                    if (fossilIntervals.size() > 0) {
+                        for (const auto& interval : fossilIntervals)
+                            fossilIndex.insertInterval(interval.id, interval.start, interval.end);
+                        totalRebuildTime += tim.stop();
+                        numRebuilds++;
+                    }
                 }
 
                 break;
@@ -222,7 +221,7 @@ int main(int argc, char **argv){
                     totalQueryTime_i += tim.stop();
 
                     tim.start();
-                    if (qStart <= T)
+                    if (qStart <= Tf)
                         queryresult += fossilIndex.query(qStart, qEnd);
                     totalQueryTimeFossil += tim.stop();
                 }
@@ -244,7 +243,6 @@ int main(int argc, char **argv){
         cout << "Buffer capacity                    : " << maxCapacity << endl;
     else
         cout << "Buffer duration                    : " << maxDuration << endl;
-    cout << "Tf                                 : " << T << endl << endl;
     cout << "Index info" << endl;
     cout << "Updates report" << endl;
     cout << "Num of updates                     : " << numUpdates << endl;
