@@ -20,7 +20,7 @@ public:
 private:
     IStorageManager* storageManager;
     ISpatialIndex* rtree;
-    mutable size_t objectCount;
+    mutable size_t objectCount = 0;
 };
 
 #endif // FOSSIL_INDEX_H

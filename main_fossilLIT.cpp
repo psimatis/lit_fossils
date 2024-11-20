@@ -254,13 +254,13 @@ int main(int argc, char **argv){
         cout << "Buffer capacity                    : " << maxCapacity << endl;
     else
         cout << "Buffer duration                    : " << maxDuration << endl;
-    cout << "Tf                                  : " << T << endl << endl;
+    cout << "Tf                                 : " << T << endl << endl;
     cout << "Index info" << endl;
     cout << "Updates report" << endl;
     cout << "Num of updates                     : " << numUpdates << endl;
     cout << "Num of buffers  (max)              : " << maxNumBuffers << endl;
-    cout << "Num of rebuilds                     : " << numRebuilds << endl;
-    cout << "Total time for rebuilds [secs]      : " << totalRebuildTime << endl;
+    cout << "Num of rebuilds                    : " << numRebuilds << endl;
+    cout << "Total time for rebuilds [secs]     : " << totalRebuildTime << endl;
     cout << "Total updating time (buffer) [secs]: " << (totalBufferStartTime + totalBufferEndTime) << endl;
     cout << "Total updating time (index)  [secs]: " << totalIndexEndTime << endl;
     cout << "Num of fossils                     : " << fossilIndex.getObjectCount() << endl << endl;
