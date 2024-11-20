@@ -16,10 +16,7 @@ FossilIndex::FossilIndex(string storageFile) {
     if (!rtree) 
         throw runtime_error("Failed to create R-tree.");
 }
-FossilIndex::~FossilIndex() {
-    delete rtree;
-    delete storageManager;
-}
+FossilIndex::~FossilIndex() {}
 
 void FossilIndex::insertInterval(int id, double start, double end) {
     double lowBounds[2] = {start, 0.0};
@@ -51,4 +48,17 @@ int FossilIndex::query(double queryStart, double queryEnd) const {
 
 size_t FossilIndex::getObjectCount() const {
     return objectCount;
+}
+
+double getFileSizeInMB(const string& filePath) {
+    ifstream file(filePath, ios::binary | ios::ate);
+    if (!file) throw runtime_error("Could not open file: " + filePath);
+
+    streamsize fileSize = file.tellg();
+    file.close();
+    return static_cast<double>(fileSize);
+}
+
+double FossilIndex::getDiskUsage() {  
+    return getFileSizeInMB("fossil_index.db.dat") + getFileSizeInMB("fossil_index.db.idx");
 }

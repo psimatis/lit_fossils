@@ -83,18 +83,19 @@ LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timesta
     throw invalid_argument("Invalid buffer type or constraints for Live Index.");
 }
 
-void displayMemoryUsage(LiveIndex* liveIndex, HINT_Reconstructable* deadIndex) {
+void displayMemoryUsage(LiveIndex* liveIndex, HINT_Reconstructable* deadIndex, FossilIndex fossilIndex) {
     size_t liveIndexSize = liveIndex->getMemoryUsage();
     size_t deadIndexSize = deadIndex->getMemoryUsage();
+    size_t fossilIndexSize = fossilIndex.getDiskUsage();
 
     double liveIndexSizeMB = liveIndexSize / (1024.0 * 1024.0);
     double deadIndexSizeMB = deadIndexSize / (1024.0 * 1024.0);
+    double fossilIndexSizeMB = fossilIndexSize / (1024.0 * 1024.0);
 
-    std::cout << "\nMemory Usage Report:" << std::endl;
-    std::cout << "---------------------" << std::endl;
-    std::cout << "Live Index Memory Usage   : " << liveIndexSizeMB << " MB" << std::endl;
-    std::cout << "Dead Index Memory Usage   : " << deadIndexSizeMB << " MB" << std::endl;
-    std::cout << "Total Memory Usage        : " << (liveIndexSizeMB + deadIndexSizeMB) << " MB" << std::endl;
+    cout << "\nSize Report:" << endl;
+    cout << "Live Index Memory Usage            : " << liveIndexSizeMB << " MB" << endl;
+    cout << "Dead Index Memory Usage            : " << deadIndexSizeMB << " MB" << endl;
+    cout << "Fossil Index Disk Usage            : " << fossilIndexSizeMB << " MB" << endl;
 }
 
 int main(int argc, char **argv){
@@ -116,10 +117,6 @@ int main(int argc, char **argv){
     
     char operation;
     string typeBuffer, queryFile;
-
-    // Fossil index
-    string storageFile = "fossil_index.db";
-    FossilIndex fossilIndex(storageFile);
     
     // Parse arguments
     try {
@@ -130,17 +127,10 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    // Create dead index
+    // Create indexes
+    liveIndex = createLiveIndex(typeBuffer, maxCapacity, maxDuration);
     deadIndex = new HINT_Reconstructable(leafPartitionExtent);
-
-    // Create live index
-    try {
-        liveIndex = createLiveIndex(typeBuffer, maxCapacity, maxDuration);
-    } catch (const invalid_argument& e) {
-        cerr << "Error: " << e.what() << endl;
-        usage();
-        return 1;
-    }
+    FossilIndex fossilIndex("fossil_index.db");
 
     // Load stream
     settings.queryFile = argv[optind];
@@ -150,8 +140,6 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    int id;
-    Timestamp startTime, endTime;
     // Explanation:
     // Operation is S/E to start/end an interval, or Q to query.
     // Fist is the inteval ID if S/E, or query start time if Q.
@@ -160,20 +148,21 @@ int main(int argc, char **argv){
     // unused2 is only used by aLit. It is probably extra attribute to index.
     while (fQ >> operation >> first >> second >> unused1 >> unused2){
         switch (operation){
-            case 'S':
-                id = first;
-                startTime = second;
+            case 'S': {
+                numUpdates++;
+                int id = first;
+                Timestamp startTime = second;
+
                 tim.start();
                 liveIndex->insert(id, startTime);
                 totalBufferStartTime += tim.stop();
-                
-                numUpdates++;
-                
                 break;
-
+            }
             case 'E': {
-                id = first;
-                endTime = second;
+                numUpdates++;
+                int id = first;
+                Timestamp endTime = second;
+
                 tim.start();
                 startEndpoint = liveIndex->remove(id); // This returns the start timestamp of the deleted interval
                 totalBufferEndTime += tim.stop();
@@ -182,17 +171,11 @@ int main(int argc, char **argv){
                 deadIndex->insert(Record(id, startEndpoint, endTime));
                 totalIndexEndTime += tim.stop();
 
-                numUpdates++;
-
                 // Fossilize intervals
-                double totalMemory = liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage();
-
-                if (totalMemory > memoryThreshold) {
+                if (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage() > memoryThreshold) {
                     tim.start();
                     Tf += (endTime - Tf) / 2;
-                    cout << "Tf: " << Tf << endl;
                     const Relation& fossilIntervals = deadIndex->rebuild(Tf);
-                    cout << "Intervals to move to fossil: " << fossilIntervals.size() << endl;
                     if (fossilIntervals.size() > 0) {
                         for (const auto& interval : fossilIntervals)
                             fossilIndex.insertInterval(interval.id, interval.start, interval.end);
@@ -200,7 +183,6 @@ int main(int argc, char **argv){
                         numRebuilds++;
                     }
                 }
-
                 break;
             }
             case 'Q':
@@ -226,7 +208,6 @@ int main(int argc, char **argv){
                     totalQueryTimeFossil += tim.stop();
                 }
                 totalResult += queryresult;
-                
                 break;
         }
         maxNumBuffers = max(maxNumBuffers, liveIndex->getNumBuffers());
@@ -256,18 +237,11 @@ int main(int argc, char **argv){
     cout << "Queries report" << endl;
     cout << "Num of queries                     : " << numQueries << endl;
     cout << "Num of runs per query              : " << settings.numRuns << endl;
-    cout << "Total result [";
-    cout << "XOR]                 : ";
-    cout << totalResult << endl;
+    cout << "Total result [XOR]                 : " << totalResult << endl;
     cout << "Total querying time (buffer) [secs]: " << (totalQueryTime_b / settings.numRuns) << endl;
     cout << "Total querying time (index)  [secs]: " << (totalQueryTime_i / settings.numRuns) << endl;
     cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl;
 
-    cout << "Memory Usage Report:" << endl;
-    displayMemoryUsage(liveIndex, deadIndex);
-
-    delete liveIndex;
-    delete deadIndex;
-    
+    displayMemoryUsage(liveIndex, deadIndex, fossilIndex);
     return 0;
 }

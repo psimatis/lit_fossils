@@ -86,14 +86,13 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
     if (fossilRecords.size() > 0) {
         HINT_Reconstructable newIndex(this->leafPartitionExtent);
         for (const auto& record : validRecords) newIndex.insert(record);
-        cout << "Before rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
         *this = move(newIndex);
-        cout << "After rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
     }
     return fossilRecords;
 }
 
 size_t HINT_Reconstructable::getMemoryUsage() const {
+
     size_t totalSize = 0;
 
     // Memory for pOrgsInIds and related timestamps

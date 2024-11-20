@@ -16,6 +16,7 @@ public:
     void insertInterval(int id, double start, double end);
     int query(double queryStart, double queryEnd) const;
     size_t getObjectCount() const;
+    double getDiskUsage();
 
 private:
     IStorageManager* storageManager;
