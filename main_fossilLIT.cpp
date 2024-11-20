@@ -187,10 +187,6 @@ int main(int argc, char **argv){
                 tim.start();
                 startEndpoint = liveIndex->remove(id); // This returns the start timestamp of the deleted interval
                 totalBufferEndTime += tim.stop();
-                
-                // tim.start();
-                // deadIndex->insert(Record(id, startEndpoint, endTime));
-                // totalIndexEndTime += tim.stop();
 
                 tim.start();
                 deadIndex->insert(Record(id, startEndpoint, endTime));

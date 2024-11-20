@@ -15,6 +15,9 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
     Relation validRecords;
     Relation fossilRecords;
 
+    // Track processed intervals to prevent duplicates
+    unordered_set<int> processedIds;
+
     // Iterate through all partitions and separate intervals
     for (size_t level = 0; level < this->height; ++level) {
         for (size_t partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
@@ -24,9 +27,11 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pOrgsInTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
+                if (processedIds.count(r.id)) continue;
+                processedIds.insert(r.id);
+
                 if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
-                
             }
         }
 
@@ -37,6 +42,9 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 id.push_back(this->pOrgsAftIds[level][partition][i]);
                 const auto& timestamp = this->pOrgsAftTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
+
+                if (processedIds.count(r.id)) continue;
+                processedIds.insert(r.id);
 
                 if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
@@ -50,6 +58,9 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pRepsInTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
+                if (processedIds.count(r.id)) continue;
+                processedIds.insert(r.id);
+
                 if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
             }
@@ -62,6 +73,9 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
                 const auto& timestamp = this->pRepsAftTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
+                if (processedIds.count(r.id)) continue;
+                processedIds.insert(r.id);
+
                 if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
             }
@@ -71,10 +85,9 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
     // Create a new HINT index with remaining valid records
     HINT_Reconstructable newIndex(this->leafPartitionExtent);
     for (const auto& record : validRecords) newIndex.insert(record);
-    // cout << "Before rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
+    cout << "Before rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
     *this = move(newIndex);
-    // cout << "After rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
-
+    cout << "After rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
 
     return fossilRecords;
 }
