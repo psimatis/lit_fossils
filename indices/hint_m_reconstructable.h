@@ -10,8 +10,8 @@
 class HINT_Reconstructable : public HINT_M_Dynamic {
 public:
     HINT_Reconstructable(Timestamp leafPartitionExtent);
-    void rebuild(); // Rebuild index without tombstones
-    bool isTombstoned(const Record& r) const;
+    Relation rebuild(Timestamp Tf); // Rebuild index without tombstones
+    bool isTombstoned(const Record& r, Timestamp Tf) const;
 };
 
 #endif // HINT_M_RECONSTRUCTABLE_H
