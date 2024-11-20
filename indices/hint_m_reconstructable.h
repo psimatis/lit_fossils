@@ -12,6 +12,7 @@ public:
     HINT_Reconstructable(Timestamp leafPartitionExtent);
     Relation rebuild(Timestamp Tf); // Rebuild index without tombstones
     bool isTombstoned(const Record& r, Timestamp Tf) const;
+    size_t getMemoryUsage() const;
 };
 
 #endif // HINT_M_RECONSTRUCTABLE_H

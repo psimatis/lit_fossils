@@ -48,3 +48,4 @@ clean:
 	rm -rf query_pureLIT.exec
 	rm -rf query_aLIT.exec
 	rm -rf query_fossilLIT.exec
+	rm fossil_index.db.*

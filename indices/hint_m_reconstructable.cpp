@@ -75,3 +75,54 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
 
     return fossilRecords;
 }
+
+size_t HINT_Reconstructable::getMemoryUsage() const {
+    size_t totalSize = 0;
+
+    // Memory for pOrgsInIds and related timestamps
+    for (const auto& level : pOrgsInIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(RecordId); // Memory for RecordIds
+        }
+    }
+    for (const auto& level : pOrgsInTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(pair<Timestamp, Timestamp>); // Memory for timestamps
+        }
+    }
+
+    // Repeat for pOrgsAft, pRepsIn, pRepsAft
+    for (const auto& level : pOrgsAftIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pOrgsAftTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+    for (const auto& level : pRepsInIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pRepsInTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+    for (const auto& level : pRepsAftIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pRepsAftTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.capacity() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+
+    return totalSize;
+}
+

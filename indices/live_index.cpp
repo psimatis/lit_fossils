@@ -566,9 +566,43 @@ size_t LiveIndexCapacityConstrainted<T>::executeTimeTravel_lowerthan(RangeQuery 
 }
 
 template <class T>
+size_t LiveIndexCapacityConstrainted<T>::getMemoryUsage(){
+    size_t totalSize = 0;
+
+    for (auto i = 0; i < this->buffers.size(); i++)
+    {
+        totalSize += this->buffers[i].getSize() * sizeof(RecordId); // Assuming `buffer.getSize()` gives the record count in each buffer
+    }
+
+    // Memory used by offsets
+    totalSize += this->offsets_starts.size() * sizeof(Timestamp);
+    totalSize += this->offsets_ids.size() * sizeof(RecordId);
+
+    return totalSize;
+}
+
+
+
+template <class T>
 LiveIndexDurationConstrainted<T>::LiveIndexDurationConstrainted(Timestamp duration)
 {
     this->duration = duration;
+}
+
+template <class T>
+size_t LiveIndexDurationConstrainted<T>::getMemoryUsage(){
+    size_t totalSize = 0;
+
+    for (auto i = 0; i < this->buffers.size(); i++)
+    {
+        totalSize += this->buffers[i].getSize() * sizeof(RecordId); // Assuming `buffer.getSize()` gives the record count in each buffer
+    }
+
+    // Memory used by offsets
+    totalSize += this->offsets_starts.size() * sizeof(Timestamp);
+    totalSize += this->offsets_ids.size() * sizeof(RecordId);
+
+    return totalSize;
 }
 
 
@@ -674,6 +708,5 @@ size_t LiveIndexDurationConstrainted<T>::execute_gOverlaps(RangeQuery Q)
     
     return result;
 }
-
 
 

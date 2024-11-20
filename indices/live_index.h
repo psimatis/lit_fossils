@@ -20,6 +20,7 @@ public:
     virtual void reorganize(size_t capacity) {};
 //    virtual void removeEmptyBuffers() {};
     virtual void print(char c) {};
+    virtual size_t getMemoryUsage() {};
     virtual ~LiveIndex() {};
 
     // Querying
@@ -56,6 +57,7 @@ public:
     void reorganize(size_t maxCapacity);
 //    void removeEmptyBuffers();
     void print(char c);
+    size_t getMemoryUsage();
     ~LiveIndexCapacityConstrainted();
 
     // Querying
@@ -91,6 +93,7 @@ public:
     size_t getNumBuffers();
     void mergeBuffers();
     void print(char c);
+    size_t getMemoryUsage();
     ~LiveIndexDurationConstrainted();
 
     // Querying

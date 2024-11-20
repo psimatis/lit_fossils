@@ -85,6 +85,20 @@ LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timesta
     throw invalid_argument("Invalid buffer type or constraints for Live Index.");
 }
 
+void displayMemoryUsage(LiveIndex* liveIndex, HINT_Reconstructable* deadIndex) {
+    size_t liveIndexSize = liveIndex->getMemoryUsage();
+    size_t deadIndexSize = deadIndex->getMemoryUsage();
+
+    double liveIndexSizeMB = liveIndexSize / (1024.0 * 1024.0);
+    double deadIndexSizeMB = deadIndexSize / (1024.0 * 1024.0);
+
+    std::cout << "\nMemory Usage Report:" << std::endl;
+    std::cout << "---------------------" << std::endl;
+    std::cout << "Live Index Memory Usage   : " << liveIndexSizeMB << " MB" << std::endl;
+    std::cout << "Dead Index Memory Usage   : " << deadIndexSizeMB << " MB" << std::endl;
+    std::cout << "Total Memory Usage        : " << (liveIndexSizeMB + deadIndexSizeMB) << " MB" << std::endl;
+}
+
 int main(int argc, char **argv){
     Timer tim;
     HINT_Reconstructable *deadIndex;
@@ -261,6 +275,8 @@ int main(int argc, char **argv){
     cout << "Total querying time (index)  [secs]: " << (totalQueryTime_i / settings.numRuns) << endl;
     cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl;
 
+    cout << "Memory Usage Report:" << endl;
+    displayMemoryUsage(liveIndex, deadIndex);
 
     delete liveIndex;
     delete deadIndex;
