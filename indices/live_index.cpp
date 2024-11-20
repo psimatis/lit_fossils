@@ -570,9 +570,7 @@ size_t LiveIndexCapacityConstrainted<T>::getMemoryUsage(){
     size_t totalSize = 0;
 
     for (auto i = 0; i < this->buffers.size(); i++)
-    {
         totalSize += this->buffers[i].getSize() * sizeof(RecordId); // Assuming `buffer.getSize()` gives the record count in each buffer
-    }
 
     // Memory used by offsets
     totalSize += this->offsets_starts.size() * sizeof(Timestamp);

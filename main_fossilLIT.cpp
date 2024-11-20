@@ -115,7 +115,6 @@ int main(int argc, char **argv){
 
     double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalRebuildTime = 0;
     double totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
-    double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
     double memoryThresholdMB = 80;
     
@@ -175,9 +174,6 @@ int main(int argc, char **argv){
                 
                 numUpdates++;
                 
-                process_mem_usage(vm, rss);
-                vmMax = max(vm, vmMax);
-                rssMax = max(rss, rssMax);
                 break;
 
             case 'E': {
@@ -194,12 +190,10 @@ int main(int argc, char **argv){
                 numUpdates++;
 
                 // Fossilize intervals
-                // Check memory usage
                 double totalMemoryMB = (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage()) / (1024.0 * 1024.0);
 
                 if (totalMemoryMB > memoryThresholdMB) {
                     tim.start();
-                    // Relation fossilIntervals = deadIndex->rebuild(T);
                     const Relation& fossilIntervals = deadIndex->rebuild(T);
                     cout << "Intervals to move to fossil:" << fossilIntervals.size() << endl;
                     for (const auto& interval : fossilIntervals)
@@ -208,9 +202,6 @@ int main(int argc, char **argv){
                     numRebuilds++;
                 }
 
-                process_mem_usage(vm, rss);
-                vmMax = max(vm, vmMax);
-                rssMax = max(rss, rssMax);
                 break;
             }
             case 'Q':
@@ -237,10 +228,6 @@ int main(int argc, char **argv){
                 }
                 totalResult += queryresult;
                 
-                // Question: What does this function do?
-                process_mem_usage(vm, rss);
-                vmMax = max(vm, vmMax);
-                rssMax = max(rss, rssMax);
                 break;
         }
         maxNumBuffers = max(maxNumBuffers, liveIndex->getNumBuffers());
