@@ -1,7 +1,6 @@
 // Notes 
 // Currently T is constant. Where should it go when it moves?
 // I trigger fossilizating every few dead index updates. It should trigger when the memory usage exceeds a threshold.
-// There seems to be a bug with reconstructing the dead index. The size increases like crazy after every reconstruction. Probably copying too many things.
 // The live index is tiny (eg 0.0017MB) compared to dead index (eg 130MB). 
 
 #include "getopt.h"
@@ -111,7 +110,6 @@ int main(int argc, char **argv){
 
     size_t maxCapacity = -1, maxNumBuffers = 0;
     size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
-    int rebuildThreshold = 500000;
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
 
@@ -119,6 +117,7 @@ int main(int argc, char **argv){
     double totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
     double vm = 0, rss = 0, vmMax = 0, rssMax = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
+    double memoryThresholdMB = 80;
     
     char operation;
     string typeBuffer, queryFile;
@@ -181,7 +180,7 @@ int main(int argc, char **argv){
                 rssMax = max(rss, rssMax);
                 break;
 
-            case 'E':
+            case 'E': {
                 id = first;
                 endTime = second;
                 tim.start();
@@ -194,16 +193,18 @@ int main(int argc, char **argv){
 
                 numUpdates++;
 
-                // Rebuild the dead index and retrieve fossil intervals
-                if (numUpdates % rebuildThreshold == 0) { // TODO: Define rebuildThreshold as needed 
+                // Fossilize intervals
+                // Check memory usage
+                double totalMemoryMB = (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage()) / (1024.0 * 1024.0);
+
+                if (totalMemoryMB > memoryThresholdMB) {
                     tim.start();
+                    // Relation fossilIntervals = deadIndex->rebuild(T);
                     const Relation& fossilIntervals = deadIndex->rebuild(T);
-                    totalRebuildTime += tim.stop();
-
                     cout << "Intervals to move to fossil:" << fossilIntervals.size() << endl;
-
                     for (const auto& interval : fossilIntervals)
                         fossilIndex.insertInterval(interval.id, interval.start, interval.end);
+                    totalRebuildTime += tim.stop();
                     numRebuilds++;
                 }
 
@@ -211,7 +212,7 @@ int main(int argc, char **argv){
                 vmMax = max(vm, vmMax);
                 rssMax = max(rss, rssMax);
                 break;
-
+            }
             case 'Q':
                 Timestamp qStart = first;
                 Timestamp qEnd = second;
