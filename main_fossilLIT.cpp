@@ -1,4 +1,8 @@
-// TODO: Currently T is constant. Should it move? How?
+// Notes 
+// Currently T is constant. Where should it go when it moves?
+// I trigger fossilizating every few dead index updates. It should trigger when the memory usage exceeds a threshold.
+// There seems to be a bug with reconstructing the dead index. The size increases like crazy after every reconstruction. Probably copying too many things.
+// The live index is tiny (eg 0.0017MB) compared to dead index (eg 130MB). 
 
 #include "getopt.h"
 #include "def_global.h"
@@ -184,6 +188,10 @@ int main(int argc, char **argv){
                 startEndpoint = liveIndex->remove(id); // This returns the start timestamp of the deleted interval
                 totalBufferEndTime += tim.stop();
                 
+                // tim.start();
+                // deadIndex->insert(Record(id, startEndpoint, endTime));
+                // totalIndexEndTime += tim.stop();
+
                 tim.start();
                 deadIndex->insert(Record(id, startEndpoint, endTime));
                 totalIndexEndTime += tim.stop();

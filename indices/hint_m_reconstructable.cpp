@@ -26,6 +26,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
 
                 if (isFossil(r, Tf)) fossilRecords.push_back(r);
                 else validRecords.push_back(r);
+                
             }
         }
 
@@ -70,7 +71,10 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
     // Create a new HINT index with remaining valid records
     HINT_Reconstructable newIndex(this->leafPartitionExtent);
     for (const auto& record : validRecords) newIndex.insert(record);
+    // cout << "Before rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
     *this = move(newIndex);
+    // cout << "After rebuild: Dead index size = " << this->getMemoryUsage() << " bytes" << endl;
+
 
     return fossilRecords;
 }
