@@ -3,7 +3,6 @@
 #include "getopt.h"
 #include "def_global.h"
 #include "./containers/relation.h"
-// #include "./indices/hint_m.h"
 #include "./indices/live_index.cpp"
 #include "./indices/fossil_index.h"
 #include "./indices/hint_m_reconstructable.h"
@@ -88,8 +87,8 @@ LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timesta
 
 int main(int argc, char **argv){
     Timer tim;
-    HINT_Reconstructable *idxR;
-    LiveIndex *lidxR;
+    HINT_Reconstructable *deadIndex;
+    LiveIndex *liveIndex;
     RunSettings settings;
 
     size_t maxCapacity = -1, maxNumBuffers = 0;
@@ -119,11 +118,11 @@ int main(int argc, char **argv){
     }
 
     // Create dead index
-    idxR = new HINT_Reconstructable(leafPartitionExtent);
+    deadIndex = new HINT_Reconstructable(leafPartitionExtent);
 
     // Create live index
     try {
-        lidxR = createLiveIndex(typeBuffer, maxCapacity, maxDuration);
+        liveIndex = createLiveIndex(typeBuffer, maxCapacity, maxDuration);
     } catch (const invalid_argument& e) {
         cerr << "Error: " << e.what() << endl;
         usage();
@@ -152,7 +151,7 @@ int main(int argc, char **argv){
                 id = first;
                 startTime = second;
                 tim.start();
-                lidxR->insert(id, startTime);
+                liveIndex->insert(id, startTime);
                 totalBufferStartTime += tim.stop();
                 
                 numUpdates++;
@@ -166,14 +165,14 @@ int main(int argc, char **argv){
                 id = first;
                 endTime = second;
                 tim.start();
-                startEndpoint = lidxR->remove(id); // This returns the start timestamp of the deleted interval
+                startEndpoint = liveIndex->remove(id); // This returns the start timestamp of the deleted interval
                 totalBufferEndTime += tim.stop();
                 
                 tim.start();
                 if (endTime <= T)
                     fossilIndex.insertInterval(id, startEndpoint, endTime); // Add to FossilIndex
                 else
-                    idxR->insert(Record(id, startEndpoint, endTime));
+                    deadIndex->insert(Record(id, startEndpoint, endTime));
                 totalIndexEndTime += tim.stop();
 
                 numUpdates++;
@@ -191,13 +190,13 @@ int main(int argc, char **argv){
                 for (auto r = 0; r < settings.numRuns; r++){
                     tim.start();
                     // Question: Why does the query takes numQueries and uses it as id?
-                    queryresult = lidxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
+                    queryresult = liveIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                     totalQueryTime_b += tim.stop();
                     // Question: Is buffer time synonymous to live index time?
 
                     tim.start();
-                    if (qStart <= idxR->gend)
-                        queryresult ^= idxR->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
+                    if (qStart <= deadIndex->gend)
+                        queryresult ^= deadIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                     totalQueryTime_i += tim.stop();
 
                     tim.start();
@@ -213,12 +212,12 @@ int main(int argc, char **argv){
                 rssMax = max(rss, rssMax);
                 break;
         }
-        maxNumBuffers = max(maxNumBuffers, lidxR->getNumBuffers());
+        maxNumBuffers = max(maxNumBuffers, liveIndex->getNumBuffers());
     }
     fQ.close();
 
     // Report
-    idxR->getStats();
+    deadIndex->getStats();
     cout << endl << "fossilLIT" << endl;
     cout << "====================" << endl << endl;
     cout << "Buffer info" << endl;
@@ -247,8 +246,8 @@ int main(int argc, char **argv){
     cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl;
 
 
-    delete lidxR;
-    delete idxR;
+    delete liveIndex;
+    delete deadIndex;
     
     return 0;
 }

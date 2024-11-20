@@ -1,4 +1,4 @@
-// Reconstructable HINT index supporting tombstones and rebuilding.
+// Reconstructable HINT supporting rebuilding.
 // It extends HINT_M_Dynamic to facilate fossil indexing,
 
 #ifndef HINT_M_RECONSTRUCTABLE_H
@@ -9,16 +9,9 @@
 
 class HINT_Reconstructable : public HINT_M_Dynamic {
 public:
-    // Constructor
     HINT_Reconstructable(Timestamp leafPartitionExtent);
-
-    // Rebuild the index to remove tombstoned records
-    void rebuild();
-
-    // Check if a record is tombstoned
+    void rebuild(); // Rebuild index without tombstones
     bool isTombstoned(const Record& r) const;
-
-    void clear();
 };
 
 #endif // HINT_M_RECONSTRUCTABLE_H

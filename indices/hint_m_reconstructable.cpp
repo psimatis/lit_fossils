@@ -1,40 +1,14 @@
 #include "hint_m_reconstructable.h"
 
-// Constructor
+using namespace std;
+
 HINT_Reconstructable::HINT_Reconstructable(Timestamp leafPartitionExtent)
     : HINT_M_Dynamic(leafPartitionExtent) {}
 
-// Check if a record is tombstoned
 bool HINT_Reconstructable::isTombstoned(const Record& r) const {
-    // Example implementation: Adjust based on your tombstone mechanism
     return r.id == -1; // Assuming an ID of -1 marks a record as tombstoned.
 }
 
-void HINT_Reconstructable::clear() {
-    // Reset vectors
-    pOrgsInIds.clear();
-    pOrgsAftIds.clear();
-    pRepsInIds.clear();
-    pRepsAftIds.clear();
-
-    pOrgsInTimestamps.clear();
-    pOrgsAftTimestamps.clear();
-    pRepsInTimestamps.clear();
-    pRepsAftTimestamps.clear();
-
-    // Reset size variables
-    pOrgsIn_sizes = nullptr;
-    pOrgsAft_sizes = nullptr;
-    pRepsIn_sizes = nullptr;
-    pRepsAft_sizes = nullptr;
-
-    // Reset global timestamps
-    gstart = 0;
-    gend = leafPartitionExtent;
-}
-
-
-// Rebuild the index
 void HINT_Reconstructable::rebuild() {
     // Temporary container to collect all valid records
     Relation validRecords;
@@ -48,9 +22,8 @@ void HINT_Reconstructable::rebuild() {
                 const auto& timestamp = this->pOrgsInTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (!isTombstoned(r)) {
+                if (!isTombstoned(r)) 
                     validRecords.push_back(r);
-                }
             }
         }
     }
@@ -64,9 +37,8 @@ void HINT_Reconstructable::rebuild() {
                 const auto& timestamp = this->pOrgsAftTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (!isTombstoned(r)) {
+                if (!isTombstoned(r))
                     validRecords.push_back(r);
-                }
             }
         }
 
@@ -77,9 +49,8 @@ void HINT_Reconstructable::rebuild() {
                 const auto& timestamp = this->pRepsInTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (!isTombstoned(r)) {
+                if (!isTombstoned(r))
                     validRecords.push_back(r);
-                }
             }
         }
 
@@ -90,9 +61,8 @@ void HINT_Reconstructable::rebuild() {
                 const auto& timestamp = this->pRepsAftTimestamps[level][partition][i];
                 Record r = {id[0], timestamp.first, timestamp.second};
 
-                if (!isTombstoned(r)) {
+                if (!isTombstoned(r))
                     validRecords.push_back(r);
-                }
             }
         }
     }
@@ -101,10 +71,9 @@ void HINT_Reconstructable::rebuild() {
     HINT_Reconstructable newIndex(this->leafPartitionExtent);
 
     // Reinsert all valid records into the new index
-    for (const auto& record : validRecords) {
+    for (const auto& record : validRecords) 
         newIndex.insert(record);
-    }
 
     // Replace the current index with the new index
-    *this = std::move(newIndex);
+    *this = move(newIndex);
 }
