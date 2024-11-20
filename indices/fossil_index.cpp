@@ -19,8 +19,8 @@ FossilIndex::FossilIndex(string storageFile) {
 FossilIndex::~FossilIndex() {}
 
 void FossilIndex::insertInterval(int id, double start, double end) {
-    double lowBounds[2] = {start, 0.0};
-    double highBounds[2] = {end, 0.0};
+    double lowBounds[2] = {start, start};
+    double highBounds[2] = {end, end};
     Region region(lowBounds, highBounds, 2);
 
     rtree->insertData(0, nullptr, region, id);
@@ -28,8 +28,8 @@ void FossilIndex::insertInterval(int id, double start, double end) {
 }
 
 int FossilIndex::query(double queryStart, double queryEnd) const {
-    double queryLow[2] = {queryStart, 0.0};
-    double queryHigh[2] = {queryEnd, 0.0};
+    double queryLow[2] = {queryStart, queryStart};
+    double queryHigh[2] = {queryEnd, queryEnd};
     Region queryRegion(queryLow, queryHigh, 2);
 
     int count = 0;
@@ -39,7 +39,7 @@ int FossilIndex::query(double queryStart, double queryEnd) const {
         QueryVisitor(int& count) : countRef(count) {}
         void visitNode(const INode&) override {}
         void visitData(const IData&) override { ++countRef; }
-        void visitData(std::vector<const IData*>&) override {}
+        void visitData(vector<const IData*>&) override {}
     } visitor(count);
 
     rtree->intersectsWithQuery(queryRegion, visitor);

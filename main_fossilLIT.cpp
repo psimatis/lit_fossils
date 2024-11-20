@@ -1,6 +1,7 @@
 // Notes 
 // Tf moves in the middle of the latest end and its previous value if a memory threshold is reached.
 // The live index is tiny (~0.002MB) compared to dead index (~50MB). 
+// The current queries in Books.mix never touch the fossil index. I added a few in the end to query the fossils. How is the file created?
 
 #include "getopt.h"
 #include "def_global.h"
@@ -113,7 +114,7 @@ int main(int argc, char **argv){
     double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalRebuildTime = 0;
     double totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
-    double memoryThreshold = 40 * (1024 * 1024);
+    double memoryThreshold = 50 * (1024 * 1024);
     
     char operation;
     string typeBuffer, queryFile;
@@ -147,68 +148,68 @@ int main(int argc, char **argv){
     // unused1 is the end time but is not used
     // unused2 is only used by aLit. It is probably extra attribute to index.
     while (fQ >> operation >> first >> second >> unused1 >> unused2){
-        switch (operation){
-            case 'S': {
-                numUpdates++;
-                int id = first;
-                Timestamp startTime = second;
+        if (operation == 'S') {
+            numUpdates++;
+            int id = first;
+            Timestamp startTime = second;
 
+            tim.start();
+            liveIndex->insert(id, startTime);
+            totalBufferStartTime += tim.stop();
+        }
+        else if (operation == 'E') {
+            numUpdates++;
+            int id = first;
+            Timestamp endTime = second;
+
+            tim.start();
+            startEndpoint = liveIndex->remove(id); // This returns the start timestamp of the deleted interval
+            totalBufferEndTime += tim.stop();
+
+            tim.start();
+            deadIndex->insert(Record(id, startEndpoint, endTime));
+            totalIndexEndTime += tim.stop();
+
+            // Fossilize intervals
+            if (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage() > memoryThreshold) {
                 tim.start();
-                liveIndex->insert(id, startTime);
-                totalBufferStartTime += tim.stop();
-                break;
-            }
-            case 'E': {
-                numUpdates++;
-                int id = first;
-                Timestamp endTime = second;
-
-                tim.start();
-                startEndpoint = liveIndex->remove(id); // This returns the start timestamp of the deleted interval
-                totalBufferEndTime += tim.stop();
-
-                tim.start();
-                deadIndex->insert(Record(id, startEndpoint, endTime));
-                totalIndexEndTime += tim.stop();
-
-                // Fossilize intervals
-                if (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage() > memoryThreshold) {
-                    tim.start();
-                    Tf += (endTime - Tf) / 2;
-                    const Relation& fossilIntervals = deadIndex->rebuild(Tf);
-                    if (fossilIntervals.size() > 0) {
-                        for (const auto& interval : fossilIntervals)
-                            fossilIndex.insertInterval(interval.id, interval.start, interval.end);
-                        totalRebuildTime += tim.stop();
-                        numRebuilds++;
-                    }
+                Tf += (endTime - Tf) / 2;
+                const Relation& fossilIntervals = deadIndex->rebuild(Tf);
+                if (fossilIntervals.size() > 0) {
+                    for (const auto& interval : fossilIntervals)
+                        fossilIndex.insertInterval(interval.id, interval.start, interval.end);
+                    totalRebuildTime += tim.stop();
+                    numRebuilds++;
                 }
-                break;
             }
-            case 'Q':
-                Timestamp qStart = first;
-                Timestamp qEnd = second;
-                numQueries++;
+        }
+        else if (operation == 'Q') {
+            Timestamp qStart = first;
+            Timestamp qEnd = second;
+            numQueries++;
 
-                for (auto r = 0; r < settings.numRuns; r++){
-                    tim.start();
-                    // Question: Why does the query takes numQueries and uses it as id?
-                    queryresult = liveIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
-                    totalQueryTime_b += tim.stop();
-                    // Question: Is buffer time synonymous to live index time?
+            for (auto r = 0; r < settings.numRuns; r++){
+                tim.start();
+                // Question: Why does the query takes numQueries and uses it as id?
+                queryresult = liveIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
+                totalQueryTime_b += tim.stop();
+                // Question: Is buffer time synonymous to live index time?
 
-                    tim.start();
-                    if (qStart <= deadIndex->gend)
-                        queryresult ^= deadIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
-                    totalQueryTime_i += tim.stop();
-
-                    tim.start();
-                    if (qStart <= Tf)
-                        queryresult += fossilIndex.query(qStart, qEnd);
-                    totalQueryTimeFossil += tim.stop();
+                tim.start();
+                if (qStart <= deadIndex->gend){
+                    cout << "Querying dead" << endl;
+                    queryresult ^= deadIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                 }
-                totalResult += queryresult;
-                break;
+                totalQueryTime_i += tim.stop();
+
+                tim.start();
+                if (qStart <= Tf){
+                    cout << "Querying fossil" << endl;
+                    queryresult += fossilIndex.query(qStart, qEnd);
+                }
+                totalQueryTimeFossil += tim.stop();
+            }
+            totalResult += queryresult;
         }
         maxNumBuffers = max(maxNumBuffers, liveIndex->getNumBuffers());
     }
