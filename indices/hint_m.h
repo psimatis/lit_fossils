@@ -554,7 +554,7 @@ public:
 
 class HINT_M_Dynamic : public HierarchicalIndex
 {
-private:
+protected:
     vector<vector<RelationId> > pOrgsInIds;
     vector<vector<RelationId> > pOrgsAftIds;
     vector<vector<RelationId> > pRepsInIds;
@@ -588,6 +588,7 @@ public:
     // Updating
     void insert(const Record &r);
 };
+
 
 class HINT_M_Dynamic_Second_Attr : public HierarchicalIndex
 {

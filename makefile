@@ -11,7 +11,7 @@ else
 endif
 
 # Source files
-SOURCES = utils.cpp containers/relation.cpp containers/offsets_templates.cpp containers/offsets.cpp containers/buffer.cpp indices/hierarchicalindex.cpp indices/hint_m_dynamic_naive.cpp indices/hint_m_dynamic_sec_attr.cpp indices/hint_m_dynamic.cpp indices/live_index.cpp indices/fossil_index.cpp
+SOURCES = utils.cpp containers/relation.cpp containers/offsets_templates.cpp containers/offsets.cpp containers/buffer.cpp indices/hierarchicalindex.cpp indices/hint_m_dynamic_naive.cpp indices/hint_m_dynamic_sec_attr.cpp indices/hint_m_dynamic.cpp indices/hint_m_reconstructable.cpp indices/live_index.cpp indices/fossil_index.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Targets
@@ -33,7 +33,7 @@ aLIT: $(OBJECTS)
 
 # Executable for fossilLIT
 fossilLIT: $(OBJECTS)
-	$(CC) $(CFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o indices/fossil_index.o main_fossilLIT.cpp -o query_fossilLIT.exec $(LDFLAGS)
+	$(CC) $(CFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o indices/hint_m_reconstructable.o indices/fossil_index.o main_fossilLIT.cpp -o query_fossilLIT.exec $(LDFLAGS)
 
 # Rule for compiling .cpp files to .o files
 .cpp.o:

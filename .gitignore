@@ -52,3 +52,6 @@ fossils/
 streams/
 *.dat
 *.idx
+
+# Ignore test scripts
+test/
