@@ -591,8 +591,8 @@ public:
 
     // Deletion
     void remove(const Record &r);       // Remove a single interval by `tend`
-    void removeBefore(Timestamp Tf);   // Remove all intervals with `tend < Tf`
     bool removeFromPartition(int level, int partition, const Record &r);
+    Relation getFossils(Timestamp Tf);   
 };
 
 

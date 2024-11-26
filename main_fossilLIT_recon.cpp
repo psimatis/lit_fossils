@@ -106,12 +106,12 @@ int main(int argc, char **argv){
     RunSettings settings;
 
     size_t maxCapacity = -1, maxNumBuffers = 0;
-    size_t totalResult = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
+    size_t totalResult = 0, totalFossilResults = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
-    Timestamp Tf = 0;
+    Timestamp Tf = 2000000;
 
-    double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalRebuildTime = 0;
+    double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalFossilizationTime = 0;
     double totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
     double unused1, unused2; // Dummy variables consuming the data stream
     double memoryThreshold = 50 * (1024 * 1024);
@@ -147,6 +147,7 @@ int main(int argc, char **argv){
     // Second is the start/end time if S/E, or query end time if Q.
     // unused1 is the end time but is not used
     // unused2 is only used by aLit. It is probably extra attribute to index.
+    bool flag = true;
     while (fQ >> operation >> first >> second >> unused1 >> unused2){
         if (operation == 'S') {
             numUpdates++;
@@ -171,14 +172,17 @@ int main(int argc, char **argv){
             totalIndexEndTime += tim.stop();
 
             // Fossilize intervals
-            if (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage() > memoryThreshold) {
+            if (endTime > Tf && flag){
+                flag = false;
                 tim.start();
-                Tf += (endTime - Tf) / 2;
-                const Relation& fossilIntervals = deadIndex->rebuild(Tf);
-                if (fossilIntervals.size() > 0) {
-                    for (const auto& interval : fossilIntervals)
+
+                const Relation& fossils = deadIndex->rebuild(Tf);
+
+                if (fossils.size() > 0) {
+                    cout << "got the fossils: " << fossils.size() << endl;
+                    for (const auto& interval : fossils)
                         fossilIndex.insertInterval(interval.id, interval.start, interval.end);
-                    totalRebuildTime += tim.stop();
+                    totalFossilizationTime += tim.stop();
                     numRebuilds++;
                 }
             }
@@ -197,15 +201,15 @@ int main(int argc, char **argv){
 
                 tim.start();
                 if (qStart <= deadIndex->gend){
-                    // cout << "Querying dead" << endl;
                     queryresult ^= deadIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                 }
                 totalQueryTime_i += tim.stop();
 
                 tim.start();
                 if (qStart <= Tf){
-                    // cout << "Querying fossil" << endl;
-                    queryresult += fossilIndex.query(qStart, qEnd);
+                    int temp = fossilIndex.query(qStart, qEnd);
+                    totalFossilResults += temp;
+                    queryresult += temp;
                 }
                 totalQueryTimeFossil += tim.stop();
             }
@@ -230,7 +234,7 @@ int main(int argc, char **argv){
     cout << "Num of updates                     : " << numUpdates << endl;
     cout << "Num of buffers  (max)              : " << maxNumBuffers << endl;
     cout << "Num of rebuilds                    : " << numRebuilds << endl;
-    cout << "Total time for rebuilds [secs]     : " << totalRebuildTime << endl;
+    cout << "Total fossilization time     [secs]: " << totalFossilizationTime << endl;
     cout << "Total updating time (buffer) [secs]: " << (totalBufferStartTime + totalBufferEndTime) << endl;
     cout << "Total updating time (index)  [secs]: " << totalIndexEndTime << endl;
     cout << "Num of fossils                     : " << fossilIndex.getObjectCount() << endl << endl;
@@ -239,6 +243,7 @@ int main(int argc, char **argv){
     cout << "Num of queries                     : " << numQueries << endl;
     cout << "Num of runs per query              : " << settings.numRuns << endl;
     cout << "Total result [XOR]                 : " << totalResult << endl;
+    cout << "Total fossil results               : " << totalFossilResults << endl;
     cout << "Total querying time (buffer) [secs]: " << (totalQueryTime_b / settings.numRuns) << endl;
     cout << "Total querying time (index)  [secs]: " << (totalQueryTime_i / settings.numRuns) << endl;
     cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl;

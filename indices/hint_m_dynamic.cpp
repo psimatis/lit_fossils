@@ -865,7 +865,7 @@ size_t HINT_M_Dynamic::getMemoryUsage() {
 
 
 
-// Remove a single interval identified by its end timestamp
+// Remove an interval  
 void HINT_M_Dynamic::remove(const Record &r) {
     int level = 0;
     Timestamp a = r.start >> (this->maxBits - this->numBits);
@@ -874,15 +874,13 @@ void HINT_M_Dynamic::remove(const Record &r) {
 
     while (level < this->height && a <= b) {
         if (a % 2) { // last bit of a is 1
-            if (removeFromPartition(level, a, r)) {
+            if (removeFromPartition(level, a, r)) 
                 found = true;
-            }
             a++;
         }
         if (!(b % 2)) { // last bit of b is 0
-            if (removeFromPartition(level, b, r)) {
+            if (removeFromPartition(level, b, r))
                 found = true;
-            }
             b--;
         }
         a >>= 1; // a = a div 2
@@ -890,9 +888,8 @@ void HINT_M_Dynamic::remove(const Record &r) {
         level++;
     }
 
-    if (found) {
+    if (found)
         this->numIndexedRecords--;
-    }
 }
 
 // Remove a record from a specific partition
@@ -905,59 +902,60 @@ bool HINT_M_Dynamic::removeFromPartition(int level, int partition, const Record 
     bool removed = false;
 
     // Remove from OrgsIn
-    for (size_t i = 0; i < orgsInIds.size(); ++i) {
-        if (orgsInIds[i] == r.id && orgsInTimestamps[i].second == r.end) {
+    for (size_t i = 0; i < orgsInIds.size();) {
+        if (orgsInIds[i] == r.id) {
             orgsInIds.erase(orgsInIds.begin() + i);
             orgsInTimestamps.erase(orgsInTimestamps.begin() + i);
             removed = true;
-            break;
-        }
+        } else
+            i++;
     }
 
     // Remove from OrgsAft
-    for (size_t i = 0; i < orgsAftIds.size(); ++i) {
-        if (orgsAftIds[i] == r.id && orgsAftTimestamps[i].second == r.end) {
+    for (size_t i = 0; i < orgsAftIds.size();) {
+        if (orgsAftIds[i] == r.id) {
             orgsAftIds.erase(orgsAftIds.begin() + i);
             orgsAftTimestamps.erase(orgsAftTimestamps.begin() + i);
             removed = true;
-            break;
-        }
+        } else
+            i++;
     }
-
     return removed;
 }
 
-// Remove intervals with tend < Tf
-void HINT_M_Dynamic::removeBefore(Timestamp Tf) {
+Relation HINT_M_Dynamic::getFossils(Timestamp Tf) {
+    Relation fossils;
+    unordered_set<int> processedIds;
+
     for (int level = 0; level < this->height; ++level) {
         auto numPartitions = this->pOrgsInIds[level].size();
 
         for (int partition = 0; partition < numPartitions; ++partition) {
-            // Remove from OrgsIn
+            // Check OrgsIn
             auto &orgsInIds = this->pOrgsInIds[level][partition];
             auto &orgsInTimestamps = this->pOrgsInTimestamps[level][partition];
             for (size_t i = 0; i < orgsInIds.size();) {
-                if (orgsInTimestamps[i].second < Tf) {
-                    orgsInIds.erase(orgsInIds.begin() + i);
-                    orgsInTimestamps.erase(orgsInTimestamps.begin() + i);
-                    this->numIndexedRecords--;
-                } else {
+                int id = orgsInIds[i];
+                if (orgsInTimestamps[i].second < Tf && !processedIds.count(id)) {
+                    fossils.emplace_back(id, orgsInTimestamps[i].first, orgsInTimestamps[i].second);
+                    processedIds.insert(id);
+                } else
                     i++;
-                }
             }
 
-            // Remove from OrgsAft
+            // Check OrgsAft
             auto &orgsAftIds = this->pOrgsAftIds[level][partition];
             auto &orgsAftTimestamps = this->pOrgsAftTimestamps[level][partition];
             for (size_t i = 0; i < orgsAftIds.size();) {
-                if (orgsAftTimestamps[i].second < Tf) {
-                    orgsAftIds.erase(orgsAftIds.begin() + i);
-                    orgsAftTimestamps.erase(orgsAftTimestamps.begin() + i);
-                    this->numIndexedRecords--;
-                } else {
+                int id = orgsAftIds[i];
+                if (orgsAftTimestamps[i].second < Tf && !processedIds.count(id)) {
+                    fossils.emplace_back(id, orgsAftTimestamps[i].first, orgsAftTimestamps[i].second);
+                    processedIds.insert(id);
+                } else
                     i++;
-                }
             }
         }
     }
+
+    return fossils;
 }
