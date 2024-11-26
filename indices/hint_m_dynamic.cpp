@@ -2,8 +2,7 @@
 
 
 
-inline void HINT_M_Subs_CM::updateCounters(const Record &r)
-{
+inline void HINT_M_Subs_CM::updateCounters(const Record &r){
     int level = 0;
     Timestamp a = r.start >> (this->maxBits-this->numBits);
     Timestamp b = r.end   >> (this->maxBits-this->numBits);
@@ -65,97 +64,107 @@ inline void HINT_M_Subs_CM::updateCounters(const Record &r)
     }
 }
 
+// Updating
+// This checks if we have to grow the index and assigns some helper variables
+// updatePartitions() handles the actual insertion
+void HINT_M_Dynamic::insert(const Record &r){
+    // Check if the partitions where r will be inserted already exists
+    if (this->gend >= r.end)
+        this->updatePartitions(r);
+    // Need to grow the index
+    else  {
+        // Update index parameters, calculate how many extra partitions are needed.
+        this->numBits = ceil(log2(ceil((r.end-this->gstart)/(float)this->leafPartitionExtent)));
+        this->gend = this->leafPartitionExtent*pow(2, this->numBits);
+        this->maxBits = int(log2(this->gend-this->gstart)+1);
+        this->height = this->numBits+1;
+        
+        // Grow - increase the height of the index.
+        this->pOrgsInIds.resize(this->height);
+        this->pOrgsInTimestamps.resize(this->height);
+        this->pOrgsAftIds.resize(this->height);
+        this->pOrgsAftTimestamps.resize(this->height);
+        this->pRepsInIds.resize(this->height);
+        this->pRepsInTimestamps.resize(this->height);
+        this->pRepsAftIds.resize(this->height);
+        this->pRepsAftTimestamps.resize(this->height);
+        for (auto l = 0; l < this->height; l++){
+            auto cnt = (int)(pow(2, this->numBits-l));
+
+            this->pOrgsInIds[l].resize(cnt);
+            this->pOrgsInTimestamps[l].resize(cnt);
+            this->pOrgsAftIds[l].resize(cnt);
+            this->pOrgsAftTimestamps[l].resize(cnt);
+            this->pRepsInIds[l].resize(cnt);
+            this->pRepsInTimestamps[l].resize(cnt);
+            this->pRepsAftIds[l].resize(cnt);
+            this->pRepsAftTimestamps[l].resize(cnt);
+        }
+        this->updatePartitions(r);
+    }
+    this->numIndexedRecords++;
+}
+
 
 // Assumes that partitions to be updated already exist
-inline void HINT_M_Dynamic::updatePartitions(const Record &r)
-{
+// This is the actual insertion function
+inline void HINT_M_Dynamic::updatePartitions(const Record &r){
     int level = 0;
     Timestamp a = r.start >> (this->maxBits-this->numBits);
     Timestamp b = r.end   >> (this->maxBits-this->numBits);
     Timestamp prevb;
     int firstfound = 0, lastfound = 0;
-    
  
-//    cout << "a = " << a << ", b = " << b << endl;
-    while (level < this->height && a <= b)
-    {
-        if (a%2)
-        { //last bit of a is 1
-            if (firstfound)
-            {
-                if ((a == b) && (!lastfound))
-                {
-//                    this->pRepsInTmp[level][a][this->pRepsIn_sizes[level][a]] = Record(r.id, r.start, r.end);
+    while (level < this->height && a <= b) {
+        //last bit of a is 1
+        if (a%2) { 
+            if (firstfound) {
+                if ((a == b) && (!lastfound)) {
                     this->pRepsInIds[level][a].emplace_back(r.id);
                     this->pRepsInTimestamps[level][a].emplace_back(r.start, r.end);
-//                    this->pRepsIn_sizes[level][a]++;
                     lastfound = 1;
                 }
-                else
-                {
-//                    this->pRepsAftTmp[level][a][this->pRepsAft_sizes[level][a]] = Record(r.id, r.start, r.end);
+                else {
                     this->pRepsAftIds[level][a].emplace_back(r.id);
                     this->pRepsAftTimestamps[level][a].emplace_back(r.start, r.end);
-//                    this->pRepsAft_sizes[level][a]++;
                 }
             }
-            else
-            {
-                if ((a == b) && (!lastfound))
-                {
-//                    this->pOrgsInTmp[level][a][this->pOrgsIn_sizes[level][a]] = Record(r.id, r.start, r.end);
+            else {
+                if ((a == b) && (!lastfound)) {
                     this->pOrgsInIds[level][a].emplace_back(r.id);
                     this->pOrgsInTimestamps[level][a].emplace_back(r.start, r.end);
-//                    this->pOrgsIn_sizes[level][a]++;
                 }
-                else
-                {
-//                    this->pOrgsAftTmp[level][a][this->pOrgsAft_sizes[level][a]] = Record(r.id, r.start, r.end);
+                else {
                     this->pOrgsAftIds[level][a].emplace_back(r.id);
                     this->pOrgsAftTimestamps[level][a].emplace_back(r.start, r.end);
-//                    this->pOrgsAft_sizes[level][a]++;
                 }
                 firstfound = 1;
             }
             a++;
         }
-        if (!(b%2))
-        { //last bit of b is 0
+        //last bit of b is 0
+        if (!(b%2)) { 
             prevb = b;
             b--;
-            if ((!firstfound) && b < a)
-            {
-                if (!lastfound)
-                {
-//                    this->pOrgsInTmp[level][prevb][this->pOrgsIn_sizes[level][prevb]] = Record(r.id, r.start, r.end);
+            if ((!firstfound) && b < a) {
+                if (!lastfound){
                     this->pOrgsInIds[level][prevb].emplace_back(r.id);
                     this->pOrgsInTimestamps[level][prevb].emplace_back(r.start, r.end);
-//                    this->pOrgsIn_sizes[level][prevb]++;
                 }
-                else
-                {
-//                    this->pOrgsAftTmp[level][prevb][this->pOrgsAft_sizes[level][prevb]] = Record(r.id, r.start, r.end);
+                else{
                     this->pOrgsAftIds[level][prevb].emplace_back(r.id);
                     this->pOrgsAftTimestamps[level][prevb].emplace_back(r.start, r.end);
-//                    this->pOrgsAft_sizes[level][prevb]++;
                 }
             }
-            else
-            {
-                if (!lastfound)
-                {
-//                    this->pRepsInTmp[level][prevb][this->pRepsIn_sizes[level][prevb]] = Record(r.id, r.start, r.end);
+            else{
+                if (!lastfound){
                     this->pRepsInIds[level][prevb].emplace_back(r.id);
                     this->pRepsInTimestamps[level][prevb].emplace_back(r.start, r.end);
-//                    this->pRepsIn_sizes[level][prevb]++;
                     lastfound = 1;
                 }
-                else
-                {
-//                    this->pRepsAftTmp[level][prevb][this->pRepsAft_sizes[level][prevb]] = Record(r.id, r.start, r.end);
+                else{
                     this->pRepsAftIds[level][prevb].emplace_back(r.id);
                     this->pRepsAftTimestamps[level][prevb].emplace_back(r.start, r.end);
-//                    this->pRepsAft_sizes[level][prevb]++;
                 }
             }
         }
@@ -742,106 +751,6 @@ size_t HINT_M_Dynamic::execute_pureTimeTravel(RangeQuery Q)
 }
 
 
-// Updating
-void HINT_M_Dynamic::insert(const Record &r)
-{
-//    cout << "Insert "; r.print('r');
-//    cout << "======================" << endl;
-//    cout << "partitionExtent: " << this->leafPartitionExtent << endl;
-
-    
-    // Check if the partitions where r will ne inserted already exist.
-    if (this->gend >= r.end)
-    {
-//        cout << "\tgStart         : " << this->gstart << endl;
-//        cout << "\tgEnd           : " << this->gend << endl;
-//        cout << "\tnumBits        : " << this->numBits << endl;
-//        cout << "\tmaxBits        : " << this->maxBits << endl;
-        this->updatePartitions(r);
-    }
-    else    // Need to grow the index
-    {
-        // Update index parameters, calculate how many extra partitions are needed.
-//        cout<< ceil(log2(ceil((r.end-this->gstart)/(float)partitionExtent))) << endl;
-//
-//        auto extraBitsNeeded = int(log2(r.end-this->gstart)+1)-this->maxBits;
-//
-//        cout << "\tint(log2(r.end-this->gstart)+1) = " << int(log2(r.end-this->gstart)+1) << endl;
-//        cout << "\textraBitsNeeded = " << extraBitsNeeded << endl;
-//        this->numBits += extraBitsNeeded;
-//        this->gend = partitionExtent*pow(2, this->numBits);
-//        this->maxBits = int(log2(this->gend-this->gstart)+1);
-//        this->height = this->numBits+1;
-        this->numBits = ceil(log2(ceil((r.end-this->gstart)/(float)this->leafPartitionExtent)));
-        this->gend = this->leafPartitionExtent*pow(2, this->numBits);
-        this->maxBits = int(log2(this->gend-this->gstart)+1);
-        this->height = this->numBits+1;
-        
-//        cout << "\tgStart     : " << this->gstart << endl;
-//        cout << "\tNew gEnd   : " << this->gend << endl;
-//        cout << "\tNew numBits: " << this->numBits << endl;
-//        cout << "\tNew maxBits: " << this->maxBits << endl;
-//        cout << "\tNew height : " << this->height << endl;
-        
-        // Grow - increase the height of the index.
-        this->pOrgsInIds.resize(this->height);
-        this->pOrgsInTimestamps.resize(this->height);
-        this->pOrgsAftIds.resize(this->height);
-        this->pOrgsAftTimestamps.resize(this->height);
-        this->pRepsInIds.resize(this->height);
-        this->pRepsInTimestamps.resize(this->height);
-        this->pRepsAftIds.resize(this->height);
-        this->pRepsAftTimestamps.resize(this->height);
-        for (auto l = 0; l < this->height; l++)
-        {
-            auto cnt = (int)(pow(2, this->numBits-l));
-
-            this->pOrgsInIds[l].resize(cnt);
-            this->pOrgsInTimestamps[l].resize(cnt);
-            this->pOrgsAftIds[l].resize(cnt);
-            this->pOrgsAftTimestamps[l].resize(cnt);
-            this->pRepsInIds[l].resize(cnt);
-            this->pRepsInTimestamps[l].resize(cnt);
-            this->pRepsAftIds[l].resize(cnt);
-            this->pRepsAftTimestamps[l].resize(cnt);
-        }
-        this->updatePartitions(r);
-    }
-    
-    this->numIndexedRecords++;
-//    cout << endl;
-}
-
-Relation HINT_M_Dynamic::deleteFossilsBit(Timestamp Tf) {
-    Relation deletedIntervals;
-    unordered_set<int> processedIds;
-
-    Timestamp a = 0;
-    Timestamp b = Tf >> (this->maxBits-this->numBits);
-
-    for (int level = 0; level < this->height && a <= b; ++level) {
-        for (int partition = a; partition <= b; ++partition) {
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
-        }
-
-        // Narrow the range for the next level using bit logic
-        if (a % 2) { // If the last bit of `a` is 1
-            a++;
-        }
-        if (!(b % 2)) { // If the last bit of `b` is 0
-            b--;
-        }
-        a >>= 1; // a = a / 2
-        b >>= 1; // b = b / 2
-    }
-
-    return deletedIntervals;
-}
-
-
 void HINT_M_Dynamic::deleteFossilsFromPartition(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps) {
     size_t i = 0;
     while (i < ids.size()){
@@ -857,67 +766,69 @@ void HINT_M_Dynamic::deleteFossilsFromPartition(Timestamp Tf, Relation &deletedI
     }
 }
 
+
 Relation HINT_M_Dynamic::deleteFossils(Timestamp Tf) {
     Relation deletedIntervals;
     unordered_set<int> processedIds;
 
     for (int level = 0; level < this->height; ++level) {
-        for (int partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
-            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
+        size_t maxPartitions = max({
+            this->pOrgsInIds[level].size(),
+            this->pOrgsAftIds[level].size(),
+            this->pRepsInIds[level].size(),
+            this->pRepsAftIds[level].size()
+        });
+
+        for (size_t partition = 0; partition < maxPartitions; ++partition) {
+            if (partition < this->pOrgsInIds[level].size()) 
+                deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
+            if (partition < this->pOrgsAftIds[level].size()) 
+                deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
+            if (partition < this->pRepsInIds[level].size()) 
+                deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
+            if (partition < this->pRepsAftIds[level].size()) 
+                deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
         }
     }
 
     return deletedIntervals;
 }
 
+
 size_t HINT_M_Dynamic::getMemoryUsage() {
-
     size_t totalSize = 0;
-
     // Memory for pOrgsInIds, related timestamps etc
     for (const auto& level : pOrgsInIds) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level) 
             totalSize += partition.size() * sizeof(RecordId); // Memory for RecordIds
-        }
     }
     for (const auto& level : pOrgsInTimestamps) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level) 
             totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>); // Memory for timestamps
-        }
     }
     for (const auto& level : pOrgsAftIds) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level) 
             totalSize += partition.size() * sizeof(RecordId);
-        }
     }
     for (const auto& level : pOrgsAftTimestamps) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level)
             totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
-        }
     }
     for (const auto& level : pRepsInIds) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level) 
             totalSize += partition.size() * sizeof(RecordId);
-        }
     }
     for (const auto& level : pRepsInTimestamps) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level) 
             totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
-        }
     }
     for (const auto& level : pRepsAftIds) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level)
             totalSize += partition.size() * sizeof(RecordId);
-        }
     }
     for (const auto& level : pRepsAftTimestamps) {
-        for (const auto& partition : level) {
+        for (const auto& partition : level)
             totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
-        }
     }
-
     return totalSize;
 }
