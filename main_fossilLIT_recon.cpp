@@ -109,7 +109,7 @@ int main(int argc, char **argv){
     size_t totalResult = 0, totalFossilResults = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
-    Timestamp Tf = 2000000;
+    Timestamp Tf = 0;
 
     double totalBufferStartTime = 0, totalBufferEndTime = 0, totalIndexEndTime = 0, totalFossilizationTime = 0;
     double totalQueryTime_b = 0, totalQueryTime_i = 0, totalQueryTimeFossil = 0;
@@ -172,10 +172,9 @@ int main(int argc, char **argv){
             totalIndexEndTime += tim.stop();
 
             // Fossilize intervals
-            if (endTime > Tf && flag){
-                flag = false;
+            if (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage() > memoryThreshold) {
                 tim.start();
-
+                Tf += (endTime - Tf) / 2;
                 const Relation& fossils = deadIndex->rebuild(Tf);
 
                 if (fossils.size() > 0) {
