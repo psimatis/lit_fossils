@@ -171,13 +171,11 @@ int main(int argc, char **argv){
                 tim.start();
                 Tf += (endTime - Tf) / 2;
 
-                // const Relation& fossils = deadIndex->getFossils(Tf);
-                const Relation& fossils = deadIndex->removeBefore(Tf);
+                const Relation& fossils = deadIndex->deleteFossils(Tf);
                 
                 if (fossils.size() > 0) {
                     cout << "got the fossils: " << fossils.size() << endl;
                     for (const auto& interval : fossils){
-                        // deadIndex->remove(interval);
                         fossilIndex.insertInterval(interval.id, interval.start, interval.end);
                     }
                     totalFossilizationTime += tim.stop();

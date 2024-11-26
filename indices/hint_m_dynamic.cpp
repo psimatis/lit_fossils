@@ -864,142 +864,7 @@ size_t HINT_M_Dynamic::getMemoryUsage() {
 }
 
 
-
-// Remove an interval  
-void HINT_M_Dynamic::remove(const Record &r) {
-    int level = 0;
-    Timestamp a = r.start >> (this->maxBits - this->numBits);
-    Timestamp b = r.end >> (this->maxBits - this->numBits);
-    bool found = false;
-
-    while (level < this->height && a <= b) {
-        if (a % 2) { // last bit of a is 1
-            if (removeFromPartition(level, a, r)) 
-                found = true;
-            a++;
-        }
-        if (!(b % 2)) { // last bit of b is 0
-            if (removeFromPartition(level, b, r))
-                found = true;
-            b--;
-        }
-        a >>= 1; // a = a div 2
-        b >>= 1; // b = b div 2
-        level++;
-    }
-
-    if (found)
-        this->numIndexedRecords--;
-}
-
-// Remove a record from a specific partition
-bool HINT_M_Dynamic::removeFromPartition(int level, int partition, const Record &r) {
-    auto &orgsInIds = this->pOrgsInIds[level][partition];
-    auto &orgsInTimestamps = this->pOrgsInTimestamps[level][partition];
-    auto &orgsAftIds = this->pOrgsAftIds[level][partition];
-    auto &orgsAftTimestamps = this->pOrgsAftTimestamps[level][partition];
-    auto &repsInIds = this->pRepsInIds[level][partition];
-    auto &repsInTimestamps = this->pRepsInTimestamps[level][partition];
-    auto &repsAftIds = this->pRepsAftIds[level][partition];
-    auto &repsAftTimestamps = this->pRepsAftTimestamps[level][partition];
-
-    bool removed = false;
-
-    // Remove from OrgsIn
-    for (size_t i = 0; i < orgsInIds.size();) {
-        if (orgsInIds[i] == r.id) {
-            orgsInIds.erase(orgsInIds.begin() + i);
-            orgsInTimestamps.erase(orgsInTimestamps.begin() + i);
-            removed = true;
-        } else
-            i++;
-    }
-
-    // Remove from OrgsAft
-    for (size_t i = 0; i < orgsAftIds.size();) {
-        if (orgsAftIds[i] == r.id) {
-            orgsAftIds.erase(orgsAftIds.begin() + i);
-            orgsAftTimestamps.erase(orgsAftTimestamps.begin() + i);
-            removed = true;
-        } else
-            i++;
-    }
-
-    // Remove from RepsIn
-    for (size_t i = 0; i < repsInIds.size();) {
-        if (repsInIds[i] == r.id) {
-            repsInIds.erase(repsInIds.begin() + i);
-            repsInTimestamps.erase(repsInTimestamps.begin() + i);
-            removed = true;
-        } else
-            i++;
-    }
-
-    // Remove from RepsAft
-    for (size_t i = 0; i < repsAftIds.size();) {
-        if (repsAftIds[i] == r.id) {
-            repsAftIds.erase(repsAftIds.begin() + i);
-            repsAftTimestamps.erase(repsAftTimestamps.begin() + i);
-            removed = true;
-        } else
-            i++;
-    }
-
-    return removed;
-}
-
-Relation HINT_M_Dynamic::getFossils(Timestamp Tf) {
-    Relation fossils;
-    unordered_set<int> processedIds;
-
-    for (int level = 0; level < this->height; ++level) {
-        for (int partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
-            // Check OrgsIn
-            for (size_t i = 0; i < this->pOrgsInIds[level][partition].size();) {
-                int id = this->pOrgsInIds[level][partition][i];
-                if (this->pOrgsInTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
-                    fossils.emplace_back(id, this->pOrgsInTimestamps[level][partition][i].first, this->pOrgsInTimestamps[level][partition][i].second);
-                    processedIds.insert(id);
-                } else
-                    i++;
-            }
-
-            // Check OrgsAft
-            for (size_t i = 0; i < this->pOrgsAftIds[level][partition].size();) {
-                int id = this->pOrgsAftIds[level][partition][i];
-                if (this->pOrgsAftTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
-                    fossils.emplace_back(id, this->pOrgsAftTimestamps[level][partition][i].first, this->pOrgsAftTimestamps[level][partition][i].second);
-                    processedIds.insert(id);
-                } else
-                    i++;
-            }
-
-            // Check RepsIn
-            for (size_t i = 0; i < this->pRepsInIds[level][partition].size();) {
-                int id = this->pRepsInIds[level][partition][i];
-                if (this->pRepsInTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
-                    fossils.emplace_back(id, this->pRepsInTimestamps[level][partition][i].first, this->pRepsInTimestamps[level][partition][i].second);
-                    processedIds.insert(id);
-                } else
-                    i++;
-            }
-
-            // Check RepsAft
-            for (size_t i = 0; i < this->pRepsAftIds[level][partition].size();) {
-                int id = this->pRepsAftIds[level][partition][i];
-                if (this->pRepsAftTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
-                    fossils.emplace_back(id, this->pRepsAftTimestamps[level][partition][i].first, this->pRepsAftTimestamps[level][partition][i].second);
-                    processedIds.insert(id);
-                } else
-                    i++;
-            }
-        }
-    }
-
-    return fossils;
-}
-
-void HINT_M_Dynamic::removeExpiredIntervals(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps) {
+void HINT_M_Dynamic::deleteFossilsFromPartition(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps) {
     size_t i = 0;
     while (i < ids.size()){
         if (timestamps[i].second < Tf) {
@@ -1014,16 +879,16 @@ void HINT_M_Dynamic::removeExpiredIntervals(Timestamp Tf, Relation &deletedInter
     }
 }
 
-Relation HINT_M_Dynamic::removeBefore(Timestamp Tf) {
+Relation HINT_M_Dynamic::deleteFossils(Timestamp Tf) {
     Relation deletedIntervals;
-    unordered_set<int> processedIds; // Track processed IDs to avoid duplicates
+    unordered_set<int> processedIds;
 
     for (int level = 0; level < this->height; ++level) {
         for (int partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
-            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
-            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
-            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
-            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
         }
     }
 

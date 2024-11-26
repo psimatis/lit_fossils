@@ -590,13 +590,8 @@ public:
     void insert(const Record &r);
 
     // Deletion
-    void remove(const Record &r);       // Remove a single interval by `tend`
-    bool removeFromPartition(int level, int partition, const Record &r);
-    Relation getFossils(Timestamp Tf);   
-    Relation removeBefore(Timestamp Tf); // Brute force delete for benchmarking
-    Relation getAndRemoveFossilsWithBitLogic(Timestamp Tf);
-    void processPartitionForFossils(int level, int partition, Timestamp Tf, Relation& fossils, unordered_set<int>& processedIds);
-    void removeExpiredIntervals(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps);
+    Relation deleteFossils(Timestamp Tf); // Brute force delete for benchmarking
+    void deleteFossilsFromPartition(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps);
 };
 
 
