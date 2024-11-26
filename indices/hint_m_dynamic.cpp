@@ -998,3 +998,35 @@ Relation HINT_M_Dynamic::getFossils(Timestamp Tf) {
 
     return fossils;
 }
+
+void HINT_M_Dynamic::removeExpiredIntervals(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps) {
+    size_t i = 0;
+    while (i < ids.size()){
+        if (timestamps[i].second < Tf) {
+            if (processed.find(ids[i]) == processed.end()) {
+                deletedIntervals.emplace_back(ids[i], timestamps[i].first, timestamps[i].second);
+                processed.insert(ids[i]);
+            }
+            ids.erase(ids.begin() + i);
+            timestamps.erase(timestamps.begin() + i);
+            this->numIndexedRecords--;
+        } else i++;
+    }
+}
+
+Relation HINT_M_Dynamic::removeBefore(Timestamp Tf) {
+    Relation deletedIntervals;
+    unordered_set<int> processedIds; // Track processed IDs to avoid duplicates
+
+    for (int level = 0; level < this->height; ++level) {
+        for (int partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
+            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
+            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
+            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
+            removeExpiredIntervals(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
+        }
+    }
+
+    return deletedIntervals;
+}
+
