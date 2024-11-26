@@ -592,6 +592,7 @@ public:
     // Deletion
     Relation deleteFossils(Timestamp Tf); // Brute force delete for benchmarking
     void deleteFossilsFromPartition(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps);
+    Relation deleteFossilsBit(Timestamp Tf);
 };
 
 

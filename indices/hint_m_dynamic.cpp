@@ -812,55 +812,33 @@ void HINT_M_Dynamic::insert(const Record &r)
 //    cout << endl;
 }
 
-size_t HINT_M_Dynamic::getMemoryUsage() {
+Relation HINT_M_Dynamic::deleteFossilsBit(Timestamp Tf) {
+    Relation deletedIntervals;
+    unordered_set<int> processedIds;
 
-    size_t totalSize = 0;
+    Timestamp a = 0;
+    Timestamp b = Tf >> (this->maxBits-this->numBits);
 
-    // Memory for pOrgsInIds and related timestamps
-    for (const auto& level : pOrgsInIds) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(RecordId); // Memory for RecordIds
+    for (int level = 0; level < this->height && a <= b; ++level) {
+        for (int partition = a; partition <= b; ++partition) {
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition]);
+            deleteFossilsFromPartition(Tf, deletedIntervals, processedIds, this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition]);
         }
-    }
-    for (const auto& level : pOrgsInTimestamps) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>); // Memory for timestamps
-        }
-    }
 
-    // Repeat for pOrgsAft, pRepsIn, pRepsAft
-    for (const auto& level : pOrgsAftIds) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(RecordId);
+        // Narrow the range for the next level using bit logic
+        if (a % 2) { // If the last bit of `a` is 1
+            a++;
         }
-    }
-    for (const auto& level : pOrgsAftTimestamps) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        if (!(b % 2)) { // If the last bit of `b` is 0
+            b--;
         }
-    }
-    for (const auto& level : pRepsInIds) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(RecordId);
-        }
-    }
-    for (const auto& level : pRepsInTimestamps) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
-        }
-    }
-    for (const auto& level : pRepsAftIds) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(RecordId);
-        }
-    }
-    for (const auto& level : pRepsAftTimestamps) {
-        for (const auto& partition : level) {
-            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
-        }
+        a >>= 1; // a = a / 2
+        b >>= 1; // b = b / 2
     }
 
-    return totalSize;
+    return deletedIntervals;
 }
 
 
@@ -895,3 +873,51 @@ Relation HINT_M_Dynamic::deleteFossils(Timestamp Tf) {
     return deletedIntervals;
 }
 
+size_t HINT_M_Dynamic::getMemoryUsage() {
+
+    size_t totalSize = 0;
+
+    // Memory for pOrgsInIds, related timestamps etc
+    for (const auto& level : pOrgsInIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId); // Memory for RecordIds
+        }
+    }
+    for (const auto& level : pOrgsInTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>); // Memory for timestamps
+        }
+    }
+    for (const auto& level : pOrgsAftIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pOrgsAftTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+    for (const auto& level : pRepsInIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pRepsInTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+    for (const auto& level : pRepsAftIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pRepsAftTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+
+    return totalSize;
+}

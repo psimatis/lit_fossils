@@ -171,7 +171,8 @@ int main(int argc, char **argv){
                 tim.start();
                 Tf += (endTime - Tf) / 2;
 
-                const Relation& fossils = deadIndex->deleteFossils(Tf);
+                // const Relation& fossils = deadIndex->deleteFossils(Tf);
+                const Relation& fossils = deadIndex->deleteFossilsBit(Tf);
                 
                 if (fossils.size() > 0) {
                     cout << "got the fossils: " << fossils.size() << endl;
