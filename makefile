@@ -17,7 +17,7 @@ OBJECTS = $(SOURCES:.cpp=.o)
 # Targets
 all: query
 
-query: pureLIT teHINT aLIT fossilLIT
+query: pureLIT teHINT aLIT fossilLIT_recon fossilLIT_delete
 
 # Executable for pureLIT
 pureLIT: $(OBJECTS)
@@ -31,9 +31,13 @@ teHINT: $(OBJECTS)
 aLIT: $(OBJECTS)
 	$(CC) $(CFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic_sec_attr.o main_aLIT.cpp -o query_aLIT.exec $(LDFLAGS)
 
-# Executable for fossilLIT
-fossilLIT: $(OBJECTS)
-	$(CC) $(CFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o indices/hint_m_reconstructable.o indices/fossil_index.o main_fossilLIT.cpp -o query_fossilLIT.exec $(LDFLAGS)
+# Executable for fossilLIT Reconstruct
+fossilLIT_recon: $(OBJECTS)
+	$(CC) $(CFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o indices/hint_m_reconstructable.o indices/fossil_index.o main_fossilLIT_recon.cpp -o query_fossilLIT_recon.exec $(LDFLAGS)
+
+# Executable for fossilLIT Delete
+fossilLIT_delete: $(OBJECTS)
+	$(CC) $(CFLAGS) utils.o containers/relation.o containers/buffer.o indices/hierarchicalindex.o indices/live_index.o indices/hint_m_dynamic.o indices/fossil_index.o main_fossilLIT_delete.cpp -o query_fossilLIT_delete.exec $(LDFLAGS)
 
 # Rule for compiling .cpp files to .o files
 .cpp.o:
@@ -47,5 +51,6 @@ clean:
 	rm -rf query_teHINT.exec
 	rm -rf query_pureLIT.exec
 	rm -rf query_aLIT.exec
-	rm -rf query_fossilLIT.exec
+	rm -rf query_fossilLIT_recon.exec
+	rm -rf query_fossilLIT_delete.exec
 	rm fossil_index.db.*

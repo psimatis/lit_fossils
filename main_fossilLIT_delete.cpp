@@ -1,21 +1,16 @@
-// Notes 
-// Tf moves in the middle of the latest end and its previous value if a memory threshold is reached.
-// The live index is tiny (~0.002MB) compared to dead index (~50MB). 
-// The current queries in Books.mix never touch the fossil index. I added a few in the end to query the fossils. How is the file created?
-
 #include "getopt.h"
 #include "def_global.h"
 #include "./containers/relation.h"
 #include "./indices/live_index.cpp"
 #include "./indices/fossil_index.h"
-#include "./indices/hint_m_reconstructable.h"
+#include "./indices/hint_m.h"
 
 using namespace std;
 
 // Display instructions
 void usage(){
     cerr << endl << "PROJECT" << endl;
-    cerr << "       LIT with Fossil Index for Old Intervals" << endl << endl;
+    cerr << "       LIT with Fossil Index Delete for Old Intervals" << endl << endl;
     cerr << "USAGE" << endl;
     cerr << "       ./query_fossilLIT.exec [OPTIONS] [STREAMFILE]" << endl << endl;
     cerr << "DESCRIPTION" << endl;
@@ -30,7 +25,7 @@ void usage(){
     cerr << "       -r runs" << endl;
     cerr << "              set the number of runs per query; by default 1" << endl << endl;
     cerr << "EXAMPLE" << endl;
-    cerr << "       ./query_fossilLIT.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 streams/BOOKS.mix" << endl << endl;
+    cerr << "       ./query_fossilLIT_delete.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 streams/BOOKS.mix" << endl << endl;
 }
 
 // Parse arguments
@@ -84,7 +79,7 @@ LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timesta
     throw invalid_argument("Invalid buffer type or constraints for Live Index.");
 }
 
-void displayMemoryUsage(LiveIndex* liveIndex, HINT_Reconstructable* deadIndex, FossilIndex fossilIndex) {
+void displayMemoryUsage(LiveIndex* liveIndex, HINT_M_Dynamic* deadIndex, FossilIndex fossilIndex) {
     size_t liveIndexSize = liveIndex->getMemoryUsage();
     size_t deadIndexSize = deadIndex->getMemoryUsage();
     size_t fossilIndexSize = fossilIndex.getDiskUsage();
@@ -101,7 +96,7 @@ void displayMemoryUsage(LiveIndex* liveIndex, HINT_Reconstructable* deadIndex, F
 
 int main(int argc, char **argv){
     Timer tim;
-    HINT_Reconstructable *deadIndex;
+    HINT_M_Dynamic *deadIndex;
     LiveIndex *liveIndex;
     RunSettings settings;
 
@@ -130,7 +125,7 @@ int main(int argc, char **argv){
 
     // Create indexes
     liveIndex = createLiveIndex(typeBuffer, maxCapacity, maxDuration);
-    deadIndex = new HINT_Reconstructable(leafPartitionExtent);
+    deadIndex = new HINT_M_Dynamic(leafPartitionExtent);
     FossilIndex fossilIndex("fossil_index.db");
 
     // Load stream
@@ -174,13 +169,20 @@ int main(int argc, char **argv){
             if (liveIndex->getMemoryUsage() + deadIndex->getMemoryUsage() > memoryThreshold) {
                 tim.start();
                 Tf += (endTime - Tf) / 2;
-                const Relation& fossilIntervals = deadIndex->rebuild(Tf);
-                if (fossilIntervals.size() > 0) {
-                    for (const auto& interval : fossilIntervals)
-                        fossilIndex.insertInterval(interval.id, interval.start, interval.end);
-                    totalRebuildTime += tim.stop();
-                    numRebuilds++;
-                }
+
+
+                    // Remove intervals with tend < Tf
+                // size_t removedIntervals = deadIndex->removeBefore(Tf);
+                deadIndex->removeBefore(Tf);
+                // cout << "Removed intervals from the dead index." << endl;
+
+                
+                // if (fossilIntervals.size() > 0) {
+                //     for (const auto& interval : fossilIntervals)
+                //         fossilIndex.insertInterval(interval.id, interval.start, interval.end);
+                //     totalRebuildTime += tim.stop();
+                //     numRebuilds++;
+                // }
             }
         }
         else if (operation == 'Q') {
@@ -197,14 +199,14 @@ int main(int argc, char **argv){
 
                 tim.start();
                 if (qStart <= deadIndex->gend){
-                    cout << "Querying dead" << endl;
+                    // cout << "Querying dead" << endl;
                     queryresult ^= deadIndex->execute_pureTimeTravel(RangeQuery(numQueries, qStart, qEnd));
                 }
                 totalQueryTime_i += tim.stop();
 
                 tim.start();
                 if (qStart <= Tf){
-                    cout << "Querying fossil" << endl;
+                    // cout << "Querying fossil" << endl;
                     queryresult += fossilIndex.query(qStart, qEnd);
                 }
                 totalQueryTimeFossil += tim.stop();
@@ -217,7 +219,7 @@ int main(int argc, char **argv){
 
     // Report
     deadIndex->getStats();
-    cout << endl << "fossilLIT" << endl;
+    cout << endl << "fossilLIT Delete" << endl;
     cout << "====================" << endl << endl;
     cout << "Buffer info" << endl;
     cout << "Type                               : " << typeBuffer << endl;

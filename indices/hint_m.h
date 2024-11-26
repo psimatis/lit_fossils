@@ -579,6 +579,7 @@ public:
     HINT_M_Dynamic(Timestamp leafPartitionExtent);
     HINT_M_Dynamic(const Relation &R, const unsigned int numBits, const unsigned int maxBits);
     void getStats();
+    size_t getMemoryUsage();
     void print(char c);
     ~HINT_M_Dynamic() {};
     
@@ -587,6 +588,11 @@ public:
     
     // Updating
     void insert(const Record &r);
+
+    // Deletion
+    void remove(const Record &r);       // Remove a single interval by `tend`
+    void removeBefore(Timestamp Tf);   // Remove all intervals with `tend < Tf`
+    bool removeFromPartition(int level, int partition, const Record &r);
 };
 
 

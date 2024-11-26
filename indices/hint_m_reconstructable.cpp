@@ -82,7 +82,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
         }
     }
 
-    // Create a new HINT index with remaining valid records
+    // Create a new HINT index with the remaining valid records
     if (fossilRecords.size() > 0) {
         HINT_Reconstructable newIndex(this->leafPartitionExtent);
         for (const auto& record : validRecords) newIndex.insert(record);

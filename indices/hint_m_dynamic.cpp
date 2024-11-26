@@ -811,3 +811,153 @@ void HINT_M_Dynamic::insert(const Record &r)
     this->numIndexedRecords++;
 //    cout << endl;
 }
+
+size_t HINT_M_Dynamic::getMemoryUsage() {
+
+    size_t totalSize = 0;
+
+    // Memory for pOrgsInIds and related timestamps
+    for (const auto& level : pOrgsInIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId); // Memory for RecordIds
+        }
+    }
+    for (const auto& level : pOrgsInTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>); // Memory for timestamps
+        }
+    }
+
+    // Repeat for pOrgsAft, pRepsIn, pRepsAft
+    for (const auto& level : pOrgsAftIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pOrgsAftTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+    for (const auto& level : pRepsInIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pRepsInTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+    for (const auto& level : pRepsAftIds) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(RecordId);
+        }
+    }
+    for (const auto& level : pRepsAftTimestamps) {
+        for (const auto& partition : level) {
+            totalSize += partition.size() * sizeof(pair<Timestamp, Timestamp>);
+        }
+    }
+
+    return totalSize;
+}
+
+
+
+// Remove a single interval identified by its end timestamp
+void HINT_M_Dynamic::remove(const Record &r) {
+    int level = 0;
+    Timestamp a = r.start >> (this->maxBits - this->numBits);
+    Timestamp b = r.end >> (this->maxBits - this->numBits);
+    bool found = false;
+
+    while (level < this->height && a <= b) {
+        if (a % 2) { // last bit of a is 1
+            if (removeFromPartition(level, a, r)) {
+                found = true;
+            }
+            a++;
+        }
+        if (!(b % 2)) { // last bit of b is 0
+            if (removeFromPartition(level, b, r)) {
+                found = true;
+            }
+            b--;
+        }
+        a >>= 1; // a = a div 2
+        b >>= 1; // b = b div 2
+        level++;
+    }
+
+    if (found) {
+        this->numIndexedRecords--;
+    }
+}
+
+// Remove a record from a specific partition
+bool HINT_M_Dynamic::removeFromPartition(int level, int partition, const Record &r) {
+    auto &orgsInIds = this->pOrgsInIds[level][partition];
+    auto &orgsInTimestamps = this->pOrgsInTimestamps[level][partition];
+    auto &orgsAftIds = this->pOrgsAftIds[level][partition];
+    auto &orgsAftTimestamps = this->pOrgsAftTimestamps[level][partition];
+
+    bool removed = false;
+
+    // Remove from OrgsIn
+    for (size_t i = 0; i < orgsInIds.size(); ++i) {
+        if (orgsInIds[i] == r.id && orgsInTimestamps[i].second == r.end) {
+            orgsInIds.erase(orgsInIds.begin() + i);
+            orgsInTimestamps.erase(orgsInTimestamps.begin() + i);
+            removed = true;
+            break;
+        }
+    }
+
+    // Remove from OrgsAft
+    for (size_t i = 0; i < orgsAftIds.size(); ++i) {
+        if (orgsAftIds[i] == r.id && orgsAftTimestamps[i].second == r.end) {
+            orgsAftIds.erase(orgsAftIds.begin() + i);
+            orgsAftTimestamps.erase(orgsAftTimestamps.begin() + i);
+            removed = true;
+            break;
+        }
+    }
+
+    return removed;
+}
+
+// Remove intervals with tend < Tf
+void HINT_M_Dynamic::removeBefore(Timestamp Tf) {
+    for (int level = 0; level < this->height; ++level) {
+        auto numPartitions = this->pOrgsInIds[level].size();
+
+        for (int partition = 0; partition < numPartitions; ++partition) {
+            // Remove from OrgsIn
+            auto &orgsInIds = this->pOrgsInIds[level][partition];
+            auto &orgsInTimestamps = this->pOrgsInTimestamps[level][partition];
+            for (size_t i = 0; i < orgsInIds.size();) {
+                if (orgsInTimestamps[i].second < Tf) {
+                    orgsInIds.erase(orgsInIds.begin() + i);
+                    orgsInTimestamps.erase(orgsInTimestamps.begin() + i);
+                    this->numIndexedRecords--;
+                } else {
+                    i++;
+                }
+            }
+
+            // Remove from OrgsAft
+            auto &orgsAftIds = this->pOrgsAftIds[level][partition];
+            auto &orgsAftTimestamps = this->pOrgsAftTimestamps[level][partition];
+            for (size_t i = 0; i < orgsAftIds.size();) {
+                if (orgsAftTimestamps[i].second < Tf) {
+                    orgsAftIds.erase(orgsAftIds.begin() + i);
+                    orgsAftTimestamps.erase(orgsAftTimestamps.begin() + i);
+                    this->numIndexedRecords--;
+                } else {
+                    i++;
+                }
+            }
+        }
+    }
+}
