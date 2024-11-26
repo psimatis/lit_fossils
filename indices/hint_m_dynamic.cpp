@@ -898,6 +898,10 @@ bool HINT_M_Dynamic::removeFromPartition(int level, int partition, const Record 
     auto &orgsInTimestamps = this->pOrgsInTimestamps[level][partition];
     auto &orgsAftIds = this->pOrgsAftIds[level][partition];
     auto &orgsAftTimestamps = this->pOrgsAftTimestamps[level][partition];
+    auto &repsInIds = this->pRepsInIds[level][partition];
+    auto &repsInTimestamps = this->pRepsInTimestamps[level][partition];
+    auto &repsAftIds = this->pRepsAftIds[level][partition];
+    auto &repsAftTimestamps = this->pRepsAftTimestamps[level][partition];
 
     bool removed = false;
 
@@ -920,6 +924,27 @@ bool HINT_M_Dynamic::removeFromPartition(int level, int partition, const Record 
         } else
             i++;
     }
+
+    // Remove from RepsIn
+    for (size_t i = 0; i < repsInIds.size();) {
+        if (repsInIds[i] == r.id) {
+            repsInIds.erase(repsInIds.begin() + i);
+            repsInTimestamps.erase(repsInTimestamps.begin() + i);
+            removed = true;
+        } else
+            i++;
+    }
+
+    // Remove from RepsAft
+    for (size_t i = 0; i < repsAftIds.size();) {
+        if (repsAftIds[i] == r.id) {
+            repsAftIds.erase(repsAftIds.begin() + i);
+            repsAftTimestamps.erase(repsAftTimestamps.begin() + i);
+            removed = true;
+        } else
+            i++;
+    }
+
     return removed;
 }
 
@@ -928,28 +953,42 @@ Relation HINT_M_Dynamic::getFossils(Timestamp Tf) {
     unordered_set<int> processedIds;
 
     for (int level = 0; level < this->height; ++level) {
-        auto numPartitions = this->pOrgsInIds[level].size();
-
-        for (int partition = 0; partition < numPartitions; ++partition) {
+        for (int partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
             // Check OrgsIn
-            auto &orgsInIds = this->pOrgsInIds[level][partition];
-            auto &orgsInTimestamps = this->pOrgsInTimestamps[level][partition];
-            for (size_t i = 0; i < orgsInIds.size();) {
-                int id = orgsInIds[i];
-                if (orgsInTimestamps[i].second < Tf && !processedIds.count(id)) {
-                    fossils.emplace_back(id, orgsInTimestamps[i].first, orgsInTimestamps[i].second);
+            for (size_t i = 0; i < this->pOrgsInIds[level][partition].size();) {
+                int id = this->pOrgsInIds[level][partition][i];
+                if (this->pOrgsInTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
+                    fossils.emplace_back(id, this->pOrgsInTimestamps[level][partition][i].first, this->pOrgsInTimestamps[level][partition][i].second);
                     processedIds.insert(id);
                 } else
                     i++;
             }
 
             // Check OrgsAft
-            auto &orgsAftIds = this->pOrgsAftIds[level][partition];
-            auto &orgsAftTimestamps = this->pOrgsAftTimestamps[level][partition];
-            for (size_t i = 0; i < orgsAftIds.size();) {
-                int id = orgsAftIds[i];
-                if (orgsAftTimestamps[i].second < Tf && !processedIds.count(id)) {
-                    fossils.emplace_back(id, orgsAftTimestamps[i].first, orgsAftTimestamps[i].second);
+            for (size_t i = 0; i < this->pOrgsAftIds[level][partition].size();) {
+                int id = this->pOrgsAftIds[level][partition][i];
+                if (this->pOrgsAftTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
+                    fossils.emplace_back(id, this->pOrgsAftTimestamps[level][partition][i].first, this->pOrgsAftTimestamps[level][partition][i].second);
+                    processedIds.insert(id);
+                } else
+                    i++;
+            }
+
+            // Check RepsIn
+            for (size_t i = 0; i < this->pRepsInIds[level][partition].size();) {
+                int id = this->pRepsInIds[level][partition][i];
+                if (this->pRepsInTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
+                    fossils.emplace_back(id, this->pRepsInTimestamps[level][partition][i].first, this->pRepsInTimestamps[level][partition][i].second);
+                    processedIds.insert(id);
+                } else
+                    i++;
+            }
+
+            // Check RepsAft
+            for (size_t i = 0; i < this->pRepsAftIds[level][partition].size();) {
+                int id = this->pRepsAftIds[level][partition][i];
+                if (this->pRepsAftTimestamps[level][partition][i].second < Tf && !processedIds.count(id)) {
+                    fossils.emplace_back(id, this->pRepsAftTimestamps[level][partition][i].first, this->pRepsAftTimestamps[level][partition][i].second);
                     processedIds.insert(id);
                 } else
                     i++;
