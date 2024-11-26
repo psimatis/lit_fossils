@@ -106,7 +106,7 @@ int main(int argc, char **argv){
     RunSettings settings;
 
     size_t maxCapacity = -1, maxNumBuffers = 0;
-    size_t totalResult = 0, totalFossilResults = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numRebuilds = 0;
+    size_t totalResult = 0, totalFossilResults = 0, queryresult = 0, numQueries = 0, numUpdates = 0, numFossilizations = 0;
 
     Timestamp first, second, startEndpoint, leafPartitionExtent = 0, maxDuration = -1;
     Timestamp Tf = 0;
@@ -182,7 +182,7 @@ int main(int argc, char **argv){
                     for (const auto& interval : fossils)
                         fossilIndex.insertInterval(interval.id, interval.start, interval.end);
                     totalFossilizationTime += tim.stop();
-                    numRebuilds++;
+                    numFossilizations++;
                 }
             }
         }
@@ -232,7 +232,7 @@ int main(int argc, char **argv){
     cout << "Updates report" << endl;
     cout << "Num of updates                     : " << numUpdates << endl;
     cout << "Num of buffers  (max)              : " << maxNumBuffers << endl;
-    cout << "Num of rebuilds                    : " << numRebuilds << endl;
+    cout << "Num of fossilizations              : " << numFossilizations << endl;
     cout << "Total fossilization time     [secs]: " << totalFossilizationTime << endl;
     cout << "Total updating time (buffer) [secs]: " << (totalBufferStartTime + totalBufferEndTime) << endl;
     cout << "Total updating time (index)  [secs]: " << totalIndexEndTime << endl;

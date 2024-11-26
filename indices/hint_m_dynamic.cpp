@@ -753,17 +753,24 @@ size_t HINT_M_Dynamic::execute_pureTimeTravel(RangeQuery Q)
 
 void HINT_M_Dynamic::deleteFossilsFromPartition(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps) {
     size_t i = 0;
-    while (i < ids.size()){
+    vector<int> remainingIds;
+    vector<pair<Timestamp, Timestamp>> remainingTimestamps;
+
+    for (size_t i = 0; i < ids.size(); ++i) {
         if (timestamps[i].second < Tf) {
             if (processed.find(ids[i]) == processed.end()) {
                 deletedIntervals.emplace_back(ids[i], timestamps[i].first, timestamps[i].second);
                 processed.insert(ids[i]);
             }
-            ids.erase(ids.begin() + i);
-            timestamps.erase(timestamps.begin() + i);
             this->numIndexedRecords--;
-        } else i++;
+        } else {
+            remainingIds.push_back(ids[i]);
+            remainingTimestamps.push_back(timestamps[i]);
+        }
     }
+
+    ids = move(remainingIds);
+    timestamps = move(remainingTimestamps);
 }
 
 

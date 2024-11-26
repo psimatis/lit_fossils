@@ -590,8 +590,8 @@ public:
     void insert(const Record &r);
 
     // Deletion
-    Relation deleteFossils(Timestamp Tf); // Brute force delete for benchmarking
-    void deleteFossilsFromPartition(Timestamp Tf, Relation &deletedIntervals, unordered_set<int> &processed, vector<int> &ids, vector<pair<Timestamp, Timestamp>> &timestamps);
+    Relation deleteFossils(Timestamp Tf);
+    void deleteFossilsFromPartition(Timestamp, Relation &, unordered_set<int> &, vector<int> &, vector<pair<Timestamp, Timestamp>> &);
 };
 
 
