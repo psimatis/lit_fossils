@@ -11,7 +11,7 @@ FossilIndex::FossilIndex(string storageFile) {
     if (!storageManager) 
         throw runtime_error("Failed to create disk storage manager.");
 
-    long indexIdentifier = 1; // Use a valid index identifier
+    long indexIdentifier = 1;
     rtree = RTree::createNewRTree(*storageManager, 0.7, 100, 100, 2, RTree::RV_RSTAR, indexIdentifier);
     if (!rtree) 
         throw runtime_error("Failed to create R-tree.");
@@ -61,4 +61,13 @@ double getFileSizeInMB(const string& filePath) {
 
 double FossilIndex::getDiskUsage() {  
     return getFileSizeInMB("fossil_index.db.dat") + getFileSizeInMB("fossil_index.db.idx");
+}
+
+void FossilIndex::getStatistics() const {
+    IStatistics* stats = nullptr;
+    rtree->getStatistics(&stats);
+
+    cout << "Fossil Index Statistics:" << endl;
+    cout << "Number of Nodes Read: " << stats->getReads() << endl;
+    cout << "Number of Nodes Written: " << stats->getWrites() << endl;
 }

@@ -17,6 +17,7 @@ public:
     int query(double queryStart, double queryEnd) const;
     size_t getObjectCount() const;
     double getDiskUsage();
+    void getStatistics() const; 
 
 private:
     IStorageManager* storageManager;

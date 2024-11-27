@@ -245,7 +245,9 @@ int main(int argc, char **argv){
     cout << "Total fossil results               : " << totalFossilResults << endl;
     cout << "Total querying time (buffer) [secs]: " << (totalQueryTime_b / settings.numRuns) << endl;
     cout << "Total querying time (index)  [secs]: " << (totalQueryTime_i / settings.numRuns) << endl;
-    cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl;
+    cout << "Total querying time (fossil) [secs]: " << (totalQueryTimeFossil / settings.numRuns) << endl << endl;
+
+    fossilIndex.getStatistics();
 
     displayMemoryUsage(liveIndex, deadIndex, fossilIndex);
     return 0;
