@@ -15,11 +15,9 @@ void processPartition(vector<int>& ids, vector<pair<Timestamp, Timestamp>>& time
         if (processed.count(ids[i])) continue; // Skip processed IDs
         processed.insert(ids[i]);
 
-        const auto& timestamp = timestamps[i];
-        Record r = {ids[i], timestamp.first, timestamp.second};
+        Record r = {ids[i], timestamps[i].first, timestamps[i].second};
 
-        if (isFossil(r, Tf)) fossils.push_back(r);
-        else valid.push_back(r);
+        (isFossil(r, Tf) ? fossils : valid).push_back(r);
     }
 }
 
@@ -41,6 +39,7 @@ Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
 
     // Rebuild the index with valid records
     if (!fossils.empty()) {
+        // Question: There is a contrusctor that takes a relationship as input. But it requires numbits. How do i decide that?
         HINT_Reconstructable newIndex(this->leafPartitionExtent);
         for (const auto& record : valid)
             newIndex.insert(record);
