@@ -5,90 +5,49 @@ using namespace std;
 HINT_Reconstructable::HINT_Reconstructable(Timestamp leafPartitionExtent)
     : HINT_M_Dynamic(leafPartitionExtent) {}
 
-bool HINT_Reconstructable::isFossil(const Record& r, Timestamp Tf) {
+bool isFossil(const Record& r, Timestamp Tf) {
     return r.end <= Tf; // Mark as tombstoned if the record's end timestamp is less than or equal to Tf
 }
 
-// Reconstructs the HINT without the tombstones intervals.
-// The tombstoned records are returned so the fossil index can insert them.
-Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
-    Relation validRecords;
-    Relation fossilRecords;
+// Reconstructs the HINT without the fossils.
+void processPartition(vector<int>& ids, vector<pair<Timestamp, Timestamp>>& timestamps, Timestamp Tf, unordered_set<int>& processed, Relation& valid, Relation& fossils) {
+    for (size_t i = 0; i < ids.size(); ++i) {
+        if (processed.count(ids[i])) continue; // Skip processed IDs
+        processed.insert(ids[i]);
 
-    // Track processed intervals to prevent duplicates
-    unordered_set<int> processedIds;
+        const auto& timestamp = timestamps[i];
+        Record r = {ids[i], timestamp.first, timestamp.second};
+
+        if (isFossil(r, Tf)) fossils.push_back(r);
+        else valid.push_back(r);
+    }
+}
+
+Relation HINT_Reconstructable::rebuild(Timestamp Tf) {
+    Relation valid, fossils;
+    unordered_set<int> processedIds; // Prevent duplicates
 
     // Iterate through all partitions and separate intervals
     for (size_t level = 0; level < this->height; ++level) {
-        for (size_t partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) {
-            for (size_t i = 0; i < this->pOrgsInIds[level][partition].size(); ++i) {
-                RelationId id;
-                id.push_back(this->pOrgsInIds[level][partition][i]);
-                const auto& timestamp = this->pOrgsInTimestamps[level][partition][i];
-                Record r = {id[0], timestamp.first, timestamp.second};
-
-                if (processedIds.count(r.id)) continue;
-                processedIds.insert(r.id);
-
-                if (isFossil(r, Tf)) fossilRecords.push_back(r);
-                else validRecords.push_back(r);
-            }
-        }
-
-        // Repeat for pOrgsAft, pRepsIn, pRepsAft
-        for (size_t partition = 0; partition < this->pOrgsAftIds[level].size(); ++partition) {
-            for (size_t i = 0; i < this->pOrgsAftIds[level][partition].size(); ++i) {
-                RelationId id;
-                id.push_back(this->pOrgsAftIds[level][partition][i]);
-                const auto& timestamp = this->pOrgsAftTimestamps[level][partition][i];
-                Record r = {id[0], timestamp.first, timestamp.second};
-
-                if (processedIds.count(r.id)) continue;
-                processedIds.insert(r.id);
-
-                if (isFossil(r, Tf)) fossilRecords.push_back(r);
-                else validRecords.push_back(r);
-            }
-        }
-
-        for (size_t partition = 0; partition < this->pRepsInIds[level].size(); ++partition) {
-            for (size_t i = 0; i < this->pRepsInIds[level][partition].size(); ++i) {
-                RelationId id;
-                id.push_back(this->pRepsInIds[level][partition][i]);
-                const auto& timestamp = this->pRepsInTimestamps[level][partition][i];
-                Record r = {id[0], timestamp.first, timestamp.second};
-
-                if (processedIds.count(r.id)) continue;
-                processedIds.insert(r.id);
-
-                if (isFossil(r, Tf)) fossilRecords.push_back(r);
-                else validRecords.push_back(r);
-            }
-        }
-
-        for (size_t partition = 0; partition < this->pRepsAftIds[level].size(); ++partition) {
-            for (size_t i = 0; i < this->pRepsAftIds[level][partition].size(); ++i) {
-                RelationId id;
-                id.push_back(this->pRepsAftIds[level][partition][i]);
-                const auto& timestamp = this->pRepsAftTimestamps[level][partition][i];
-                Record r = {id[0], timestamp.first, timestamp.second};
-
-                if (processedIds.count(r.id)) continue;
-                processedIds.insert(r.id);
-
-                if (isFossil(r, Tf)) fossilRecords.push_back(r);
-                else validRecords.push_back(r);
-            }
-        }
+        for (size_t partition = 0; partition < this->pOrgsInIds[level].size(); ++partition) 
+            processPartition(this->pOrgsInIds[level][partition], this->pOrgsInTimestamps[level][partition], Tf, processedIds, valid, fossils);
+        for (size_t partition = 0; partition < this->pOrgsAftIds[level].size(); ++partition) 
+            processPartition(this->pOrgsAftIds[level][partition], this->pOrgsAftTimestamps[level][partition], Tf, processedIds, valid, fossils);
+        for (size_t partition = 0; partition < this->pRepsInIds[level].size(); ++partition) 
+            processPartition(this->pRepsInIds[level][partition], this->pRepsInTimestamps[level][partition], Tf, processedIds, valid, fossils);
+        for (size_t partition = 0; partition < this->pRepsAftIds[level].size(); ++partition) 
+            processPartition(this->pRepsAftIds[level][partition], this->pRepsAftTimestamps[level][partition], Tf, processedIds, valid, fossils);
     }
 
-    // Create a new HINT index with the remaining valid records
-    if (fossilRecords.size() > 0) {
+    // Rebuild the index with valid records
+    if (!fossils.empty()) {
         HINT_Reconstructable newIndex(this->leafPartitionExtent);
-        for (const auto& record : validRecords) newIndex.insert(record);
+        for (const auto& record : valid)
+            newIndex.insert(record);
         *this = move(newIndex);
     }
-    return fossilRecords;
+
+    return fossils;
 }
 
 size_t HINT_Reconstructable::getMemoryUsage() const {
