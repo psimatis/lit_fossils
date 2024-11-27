@@ -6,11 +6,12 @@
 #include <vector>
 #include <string>
 
+using namespace std;
 using namespace SpatialIndex;
 
 class FossilIndex {
 public:
-    FossilIndex(std::string storageFile);
+    FossilIndex(string storageFile);
     ~FossilIndex();
 
     void insertInterval(int id, double start, double end);

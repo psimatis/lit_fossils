@@ -12,62 +12,6 @@
 
 using namespace std;
 
-// Display instructions
-void usage(){
-    cerr << endl << "PROJECT" << endl;
-    cerr << "       LIT with Fossil Index Reconstruct for Old Intervals" << endl << endl;
-    cerr << "USAGE" << endl;
-    cerr << "       ./query_fossilLIT.exec [OPTIONS] [STREAMFILE]" << endl << endl;
-    cerr << "DESCRIPTION" << endl;
-    cerr << "       -e" << endl;
-    cerr << "              set the leaf partition extent; it is set in seconds" << endl;
-    cerr << "       -b" << endl;
-    cerr << "              set the type of data structure for the LIVE INDEX" << endl;
-    cerr << "       -c" << endl;
-    cerr << "              set the capacity constraint number for the LIVE INDEX" << endl; 
-    cerr << "       -d" << endl;
-    cerr << "              set the duration constraint number for the LIVE INDEX" << endl;      
-    cerr << "       -r runs" << endl;
-    cerr << "              set the number of runs per query; by default 1" << endl << endl;
-    cerr << "EXAMPLE" << endl;
-    cerr << "       ./query_fossilLIT_recon.exec -e 86400 -b ENHANCEDHASHMAP -c 10000 streams/BOOKS.mix" << endl << endl;
-}
-
-// Parse arguments
-void parseArguments(int argc, char** argv, RunSettings& settings, Timestamp& leafPartitionExtent, 
-                    string& typeBuffer, size_t& maxCapacity, Timestamp& maxDuration, string& queryFile) {
-    char c;
-    settings.init();
-    settings.method = "fossilLIT";
-
-    while ((c = getopt(argc, argv, "q:e:c:d:b:r:")) != -1) {
-        switch (c) {
-            case 'e':
-                leafPartitionExtent = atoi(optarg);
-                break;
-            case 'b':
-                typeBuffer = toUpperCase((char*)optarg);
-                break;
-            case 'c':
-                maxCapacity = atoi(optarg);
-                break;
-            case 'd':
-                maxDuration = atoi(optarg);
-                break;
-            case 'r':
-                settings.numRuns = atoi(optarg);
-                break;
-            case '?':
-            default:
-                throw invalid_argument("Invalid argument or option.");
-        }
-    }
-
-    if (argc - optind != 1 || leafPartitionExtent <= 0) 
-        throw invalid_argument("Invalid number of arguments. A stream file is required.");
-
-    queryFile = argv[optind];
-}
 
 // Creates Live Index
 LiveIndex* createLiveIndex(const string& typeBuffer, size_t maxCapacity, Timestamp maxDuration) {
@@ -124,7 +68,7 @@ int main(int argc, char **argv){
         parseArguments(argc, argv, settings, leafPartitionExtent, typeBuffer, maxCapacity, maxDuration, queryFile);
     } catch (const invalid_argument& e) {
         cerr << "Error: " << e.what() << endl;
-        usage();
+        usage("fossilLIT_recon");
         return 1;
     }
 
@@ -137,7 +81,7 @@ int main(int argc, char **argv){
     settings.queryFile = argv[optind];
     ifstream fQ(settings.queryFile);
     if (!fQ){
-        usage();
+        usage("fossilLIT_recon");
         return 1;
     }
 
@@ -219,7 +163,6 @@ int main(int argc, char **argv){
     fQ.close();
 
     // Report
-    deadIndex->getStats();
     cout << endl << "fossilLIT Recon" << endl;
     cout << "====================" << endl << endl;
     cout << "Buffer info" << endl;

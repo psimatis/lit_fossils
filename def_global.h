@@ -170,4 +170,6 @@ bool checkPredicate(string strPredicate, RunSettings &settings);
 bool checkAttributeConstraint(string typeSecondAttributeConstraint, RunSettings &settings);
 bool checkOptimizations(string strOptimizations, RunSettings &settings);
 void process_mem_usage(double& vm_usage, double& resident_set);
+void usage(string indexName);
+void parseArguments(int, char**, RunSettings&, Timestamp&, string&, size_t&, Timestamp&, string&);
 #endif // _GLOBAL_DEF_H_
